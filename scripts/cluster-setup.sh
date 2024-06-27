@@ -12,20 +12,7 @@ fi
 
 # Create virtual interface for cluster apiserver
 
-## Delete existing route if it exists
-ip route delete 100.60.100.0/24 dev kubeveth || true
-## Delete existing virtual network interface if it exists
-ip link delete kubeveth type veth || true
-
-## Create a new virtual network interface
-ip link add dev kubeveth type veth peer name veth1
-
-## Assign IP address range
-ip addr add 100.60.100.1/24 dev kubeveth
-ip link set kubeveth up
-
-## Set up routing
-ip route add 100.60.100.0/24 dev kubeveth
+source $(dirname $(realpath "$0"))/veth-setup.sh
 
 # Reset previous setup & cleanup
 
