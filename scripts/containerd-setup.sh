@@ -25,7 +25,7 @@ sudo mkdir -p /etc/containerd/
 containerd config default | sudo tee /etc/containerd/config.toml
 
 ## Fix default sandbox image to comply with latest version of Kubernetes
-sudo sed -i 's/pause\:3\.6/pause\:3\.9/g' /etc/containerd/config.toml
+sudo sed -i 's/pause\:3\.[0-8]/pause\:3\.9/g' /etc/containerd/config.toml
 
 ## Fix cgroup so that pods will not continuously crash
 sudo sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config.toml
