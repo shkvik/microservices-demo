@@ -16,5 +16,7 @@ sudo apt-mark hold kubelet kubeadm kubectl
 
 # Install Kustomize
 curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
-# Move the binary to a directory in your PATH
 sudo mv kustomize /usr/local/bin/
+
+# Install Helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sudo bash
