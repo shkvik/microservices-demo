@@ -14,7 +14,7 @@ kubectl taint node $NODE_NAME node-role.kubernetes.io/control-plane:NoSchedule-
 kubectl label nodes $NODE_NAME persistence-managed-replicas
 
 # Mark with persistence-nfs capability to allow deployment of singleton storages that are accessed by cluster though network
-# Such as multiple instances of application that are claiming the same NFS-type PV
+# Such as multiple instances of application that are claiming the same NFS-type PV e.g. raw file storages
 kubectl label nodes $NODE_NAME persistence-nfs-single
 
 # Mark with relay-proxy capability to allow deployment of traffic relays accessed by clients
