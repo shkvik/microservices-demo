@@ -1,0 +1,23 @@
+
+namespace: demo
+
+config:
+
+  cache:
+    storage:
+      provisioner: kubernetes.io/no-provisioner
+      pv_size: 12Gi
+      pvc_size: 12Gi
+      local_path: /tmp
+    replication:
+      count: 3
+
+  broker:
+    storage:
+      provisioner: kubernetes.io/no-provisioner
+      pv_size: 12Gi
+      pvc_size: 12Gi
+      local_path: /tmp
+    replication:
+      count: 3
+
