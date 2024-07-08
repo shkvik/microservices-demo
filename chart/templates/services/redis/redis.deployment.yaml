@@ -1,5 +1,27 @@
-## Redis main node
-
+## Redis main/worker configs
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: {{ .Values.namespace }}
+data:
+  redis.conf: ""
+---
+## Service (NS)
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-main-svc
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: redis-main
+  ports:
+  - protocol: TCP
+    port: 6379
+  type: ClusterIP
+---
+## Redis main node priority class
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
@@ -8,18 +30,19 @@ value: 1000
 globalDefault: false
 description: "Priority class for Redis main node"
 ---
+## Redis main node
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-main
   namespace: {{ .Values.namespace }}
 spec:
+  serviceName: redis-main-svc
   replicas: 1
   selector:
     matchLabels:
       app: redis
       role: main
-  serviceName: "redis-main"
   template:
     metadata:
       labels:
@@ -27,6 +50,20 @@ spec:
         role: main
     spec:
       priorityClassName: redis-main-priority
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: cache-pvc
+        - name: redis-config
+          configMap:
+            name: redis-config
+      initContainers:
+        - name: redis-init-storage
+          image: busybox
+          command: ['sh', '-c', 'mkdir -p /redis/redis-data']
+          volumeMounts:
+            - name: redis-data
+              mountPath: /redis
       containers:
         - name: redis
           image: redis:latest
@@ -34,17 +71,11 @@ spec:
             - containerPort: 6379
           volumeMounts:
             - name: redis-data
-              mountPath: /data
-          env:
-            - name: REDIS_MAIN_HOST
-              value: "redis-main"
-            - name: REDIS_MAIN_PORT
-              value: "6379"
-          command: ["redis-server"]
-      volumes:
-        - name: redis-data
-          persistentVolumeClaim:
-            claimName: cache-pvc
+              mountPath: /redis
+            - name: redis-config
+              mountPath: /etc/redis/redis.conf
+              subPath: redis.conf
+          command: ["redis-server", "/etc/redis/redis.conf", "dir", "/redis/redis-data"]
       nodeSelector: # Allow only on nodes with "persistence-managed-replicas" label
         persistence-managed-replicas: "true"
       affinity:
@@ -58,8 +89,7 @@ spec:
                 - redis
             topologyKey: "kubernetes.io/hostname"
 ---
-
-## Redis Worker nodes
+## Redis Mirror nodes priority class
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
@@ -68,6 +98,7 @@ value: 500
 globalDefault: false
 description: "Priority class for Redis workers"
 ---
+## Redis Mirror nodes
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -79,7 +110,6 @@ spec:
     matchLabels:
       app: redis
       role: worker
-  serviceName: "redis-worker"
   template:
     metadata:
       labels:
@@ -87,6 +117,20 @@ spec:
         role: worker
     spec:
       priorityClassName: redis-worker-priority
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: cache-pvc
+        - name: redis-config
+          configMap:
+            name: redis-config
+      initContainers:
+        - name: redis-init-storage
+          image: busybox
+          command: ['sh', '-c', 'mkdir -p /redis/redis-data']
+          volumeMounts:
+            - name: redis-data
+              mountPath: /redis
       containers:
         - name: redis
           image: redis:latest
@@ -94,17 +138,16 @@ spec:
             - containerPort: 6379
           volumeMounts:
             - name: redis-data
-              mountPath: /data
+              mountPath: /redis-data
+            - name: redis-config
+              mountPath: /etc/redis/redis.conf
+              subPath: redis.conf
           env:
             - name: REDIS_MAIN_HOST
-              value: "redis-main"
+              value: "redis-main-svc.{{ .Values.namespace }}.svc.cluster.local"
             - name: REDIS_MAIN_PORT
               value: "6379"
-          command: ["redis-server", "--slaveof", "$(REDIS_MAIN_HOST)", "$(REDIS_MAIN_PORT)"]
-      volumes:
-        - name: redis-data
-          persistentVolumeClaim:
-            claimName: cache-pvc
+          command: ["redis-server", "/etc/redis/redis.conf", "dir", "/redis/redis-data", "--slaveof", "$(REDIS_MAIN_HOST)", "$(REDIS_MAIN_PORT)"]
       nodeSelector: # Allow only on nodes with "persistence-managed-replicas" label
         persistence-managed-replicas: "true"
       affinity:

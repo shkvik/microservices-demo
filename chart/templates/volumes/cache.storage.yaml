@@ -1,3 +1,4 @@
+## Redis persistent storage
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -44,3 +45,51 @@ spec:
     requests:
       storage: {{ .Values.config.cache.storage.pvc_size }}
   storageClassName: cache-storage-class
+---
+## Sentinel persistent storage
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: cache-coordinator-storage-class
+  namespace: {{ .Values.namespace }}
+provisioner: {{ .Values.config.cache.coordinator.storage.provisioner }}
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cache-coordinator-pv
+  namespace: {{ .Values.namespace }}
+  labels:
+    type: local
+    usage: redis-sentinel
+spec:
+  capacity:
+    storage: {{ .Values.config.cache.coordinator.storage.pv_size }}
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: cache-coordinator-storage-class
+  local:
+    path: {{ .Values.config.cache.coordinator.storage.local_path }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: persistence-managed-replicas
+              operator: Exists
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cache-coordinator-pvc
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce  # Should match PV access mode
+  resources:
+    requests:
+      storage: {{ .Values.config.cache.coordinator.storage.pvc_size }}
+  storageClassName: cache-coordinator-storage-class
