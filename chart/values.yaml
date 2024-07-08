@@ -9,6 +9,12 @@ config:
       pv_size: 12Gi
       pvc_size: 12Gi
       local_path: /tmp
+    coordinator:
+      storage:
+        provisioner: kubernetes.io/no-provisioner
+        pv_size: 1Gi
+        pvc_size: 1Gi
+        local_path: /tmp
     replication:
       count: 3
 
