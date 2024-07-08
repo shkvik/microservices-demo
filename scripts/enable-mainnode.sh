@@ -20,3 +20,7 @@ kubectl label nodes $NODE_NAME persistence-nfs-single=true --overwrite
 # Mark with relay-proxy capability to allow deployment of traffic relays accessed by clients
 # in order to achieve traffic routing optimization (e.g. globally distributed traffic proxies under anycast DNS)
 kubectl label nodes $NODE_NAME relay-proxy=true --overwrite
+
+# Mark with supply-chain capability to allow deployment of internal supplier services like container registries, code repositories and CI/CD tools
+# e.g. Gitlab with runners, Harbor 
+kubectl label nodes $NODE_NAME supply-chain=true --overwrite
