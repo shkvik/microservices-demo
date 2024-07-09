@@ -1,0 +1,116 @@
+## Discovery addresses population based on amount of replicas
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-discovery-config
+  namespace: {{ .Values.namespace }}
+data:
+  cluster_nodes: |-
+    {{- $namespace := .Values.namespace }}
+    {{- $replicaCount := .Values.config.broker.replication.count | int }}
+    {{- range $i, $e := until $replicaCount }}
+    rabbit@rabbitmq-{{ $i }}.rabbitmq-headless.{{ $namespace }}.svc.cluster.local
+    {{- if lt (add1 $i) $replicaCount }},{{- end }}
+    {{- end }}
+
+---
+## RabbitMQ replica discovery service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: rabbitmq
+spec:
+  ports:
+  - port: 5672
+    name: amqp
+  - port: 15672
+    name: management
+  selector:
+    app: rabbitmq
+
+---
+## RabbitMQ internal cluster discovery service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: rabbitmq
+spec:
+  ports:
+  - port: 5672
+    name: amqp
+  - port: 15672
+    name: management
+  clusterIP: None
+  selector:
+    app: rabbitmq
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: rabbitmq
+spec:
+  replicas: {{ .Values.config.broker.replication.count }}
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - rabbitmq
+            topologyKey: "kubernetes.io/hostname"
+      initContainers:
+      - name: rabbit-init-storage
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p {{ .Values.config.broker.storage.data_path }}/rabbitmq && chown 999:999 {{ .Values.config.broker.storage.data_path }}/rabbitmq']
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: {{ .Values.config.broker.storage.data_path }}
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: {{ .Values.config.broker.storage.data_path }}
+        env:
+        - name: RABBITMQ_ERLANG_COOKIE
+          value: {{ .Values.config.broker.replication.clusterAuth }}
+        - name: RABBITMQ_NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: RABBITMQ_USE_LONGNAME
+          value: "true"
+        - name: RABBITMQ_MNESIA_DIR
+          value: {{ .Values.config.broker.storage.data_path }}/rabbitmq
+        - name: RABBITMQ_CLUSTER_NODES
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-discovery-config
+              key: cluster_nodes
+      volumes:
+      - name: rabbitmq-data
+        persistentVolumeClaim:
+          claimName: broker-pvc

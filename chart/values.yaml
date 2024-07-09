@@ -21,9 +21,11 @@ config:
   broker:
     storage:
       provisioner: kubernetes.io/no-provisioner
-      pv_size: 12Gi
-      pvc_size: 12Gi
+      pv_size: 20Gi
+      pvc_size: 20Gi
       local_path: /tmp
+      data_path: /rabbit
     replication:
       count: 3
+      clusterAuth: rabbitmq_test_erlang_cookie
 
