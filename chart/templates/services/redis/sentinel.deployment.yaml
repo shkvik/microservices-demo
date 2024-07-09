@@ -63,7 +63,7 @@ spec:
           command: ['sh', '-c', 'ls /etc/sentinel && cp /etc/sentinel/sentinel.conf /sentinel/sentinel-data/']
       containers:
         - name: redis-sentinel
-          image: redis:latest
+          image: redis:7
           volumeMounts:
             - name: sentinel-storage
               mountPath: /sentinel
