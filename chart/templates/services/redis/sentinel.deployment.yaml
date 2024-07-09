@@ -6,7 +6,7 @@ metadata:
 data:
   sentinel.conf: |
     port 26379
-    sentinel monitor redis-main redis-main-svc.{{ .Values.namespace }}.svc.cluster.local 6379 2
+    sentinel monitor redis-main redis-main-discovery.{{ .Values.namespace }}.svc.cluster.local 6379 2
     sentinel down-after-milliseconds redis-main 5000
     sentinel failover-timeout redis-main 10000
     sentinel parallel-syncs redis-main 1

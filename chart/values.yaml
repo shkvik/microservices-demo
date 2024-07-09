@@ -17,6 +17,8 @@ config:
         local_path: /tmp
     replication:
       count: 3
+    network:
+      serviceType: NodePort # Replace with ClusterIP for production
 
   broker:
     storage:
@@ -26,6 +28,8 @@ config:
       local_path: /tmp
       data_path: /rabbit
     replication:
-      count: 3
+      count: 1 # Increase only for environments consisting of enough cluster nodes, otherwise it will fail since impossible to maintain a quorum
       clusterAuth: rabbitmq_test_erlang_cookie
+    network:
+      serviceType: NodePort # Replace with ClusterIP for production
 

@@ -7,19 +7,34 @@ metadata:
 data:
   redis.conf: ""
 ---
-## Service (NS)
+## Redis mainnode internal discovery service
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-main-svc
+  name: redis-main-discovery
   namespace: {{ .Values.namespace }}
 spec:
   selector:
-    app: redis-main
+    app: redis
+    role: main
   ports:
   - protocol: TCP
     port: 6379
   type: ClusterIP
+---
+## Redis pods cluster discovery (load balancing)
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: redis
+  ports:
+  - protocol: TCP
+    port: 6379
+  type: {{ .Values.config.cache.network.serviceType }}
 ---
 ## Redis main node priority class
 apiVersion: scheduling.k8s.io/v1
@@ -37,7 +52,6 @@ metadata:
   name: redis-main
   namespace: {{ .Values.namespace }}
 spec:
-  serviceName: redis-main-svc
   replicas: 1
   selector:
     matchLabels:

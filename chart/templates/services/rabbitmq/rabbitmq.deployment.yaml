@@ -14,7 +14,7 @@ data:
     {{- end }}
 
 ---
-## RabbitMQ replica discovery service
+## RabbitMQ main discovery service
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,11 +23,12 @@ metadata:
   labels:
     app: rabbitmq
 spec:
+  type: {{ .Values.config.broker.network.serviceType }}
   ports:
   - port: 5672
     name: amqp
-  - port: 15672
-    name: management
+  #- port: 15672
+  #  name: management
   selector:
     app: rabbitmq
 
@@ -44,8 +45,8 @@ spec:
   ports:
   - port: 5672
     name: amqp
-  - port: 15672
-    name: management
+  #- port: 15672
+  #  name: management
   clusterIP: None
   selector:
     app: rabbitmq
