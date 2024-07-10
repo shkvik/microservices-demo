@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "node",
+        "target": "esnext",
+        "module": "commonjs",
+        "outDir": "dist",
+        "strict": true,
+        "removeComments": true,
+        "esModuleInterop": true,
+        "noImplicitAny": false,
+        "noImplicitThis": true,
+        "strictNullChecks": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true,
+        "skipLibCheck": true,
+        "skipDefaultLibCheck": true,
+        "sourceMap": true,
+        "declaration": false,
+        "resolveJsonModule": true,
+        "allowJs": true
+    },
+    "exclude": ["dist", "chart", "node_modules", ".trash"]
+}

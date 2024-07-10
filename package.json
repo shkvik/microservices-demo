@@ -1,0 +1,28 @@
+{
+  "name": "micro-demo",
+  "version": "1.0.0",
+  "description": "Microservice architecture demo",
+  "main": "./dist/src/index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "watch": "npx tsc --watch",
+    "clean": "rm -rf ./dist",
+    "test": "npx mocha -r source-map-support/register ./dist/test/unit/**/*.js --no-deprecation",
+    "test:integration":  "npx mocha -r source-map-support/register ./dist/test/integration/**/*.js --no-deprecation"
+  },
+  "author": "Zelbov",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chai": "^4.3.16",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^20.14.8",
+    "chai": "^4.4.1",
+    "mocha": "^10.4.0",
+    "source-map-support": "^0.5.21",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  },
+  "dependencies": {
+    "rxjs": "^7.8.1"
+  }
+}

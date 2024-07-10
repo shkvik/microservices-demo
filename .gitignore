@@ -1,0 +1,7 @@
+
+/.trash
+/node_modules
+/dist
+/TODO
+
+*.tgz
