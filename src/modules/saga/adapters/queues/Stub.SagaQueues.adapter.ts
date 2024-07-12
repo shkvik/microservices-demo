@@ -1,5 +1,5 @@
 import { Subject } from "rxjs";
-import { DefaultSagaRequestType, DefaultSagaResponseType, SagaQueuesAdapterCredentialsType } from "../../types/Saga.types";
+import { DefaultSagaRequestType, DefaultSagaResponseType } from "../../types/Saga.types";
 import { SagaQueuesAdapter } from "../../types/SagaQueuesAdapter.types";
 
 export class StubSagaQueuesAdapter
@@ -10,8 +10,8 @@ implements SagaQueuesAdapter {
 
     constructor(){}
 
-    setupCredentials<Credentials extends SagaQueuesAdapterCredentialsType>(credentials: Credentials): Credentials {
-        return {} as Credentials
+    setupCredentials(credentials: {}) {
+        return credentials
     }
 
     async connection(): Promise<void> {

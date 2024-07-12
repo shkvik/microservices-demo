@@ -1,5 +1,5 @@
 import { Subject } from "rxjs";
-import { DefaultSagaRequestType, DefaultSagaResponseType, SagaResponseChannelAdapterCredentialsType } from "../../types/Saga.types";
+import { DefaultSagaRequestType, DefaultSagaResponseType } from "../../types/Saga.types";
 import { SagaResponseChannelAdapter } from "../../types/SagaResponseChannelAdapter.types";
 
 
@@ -11,8 +11,8 @@ implements SagaResponseChannelAdapter {
 
     constructor(){}
 
-    setupCredentials<Credentials extends SagaResponseChannelAdapterCredentialsType>(credentials: Credentials): Credentials {
-        return {} as Credentials
+    setupCredentials(credentials: {}): {} {
+        return credentials
     }
 
     async connection(): Promise<void> {

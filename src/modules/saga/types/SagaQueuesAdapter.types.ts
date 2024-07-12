@@ -1,9 +1,9 @@
-import { DefaultSagaRequestType, DefaultSagaResponseType, SagaQueuesAdapterCredentialsType } from "../types/Saga.types";
+import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types";
 
 
-export interface SagaQueuesAdapter {
+export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
 
-    setupCredentials<Credentials extends SagaQueuesAdapterCredentialsType>(credentials: Credentials): Credentials
+    setupCredentials(credentials: CredentialsType): CredentialsType
 
     connection(): Promise<void>
 

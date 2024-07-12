@@ -1,8 +1,8 @@
-import { DefaultSagaRequestType, DefaultSagaResponseType, SagaResponseChannelAdapterCredentialsType } from "../types/Saga.types"
+import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types"
 
-export interface SagaResponseChannelAdapter {
+export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
 
-    setupCredentials<Credentials extends SagaResponseChannelAdapterCredentialsType>(credentials: Credentials): Credentials
+    setupCredentials(credentials: CredentialsType): CredentialsType
 
     /**
      * Checks for a current connection to be established.
