@@ -20,7 +20,8 @@ implements SagaQueuesAdapter {
 
     async sendSagaRequest<RequestType extends DefaultSagaRequestType>(
         request_queue_name: string,
-        request: RequestType
+        request: RequestType,
+        options: { default_dlq: string }
     ): Promise<void> {
 
         await this.connection()

@@ -25,7 +25,7 @@ describe('Sagas unit testing', () => {
 
                 adapter.subscribeToSagaQueue('test', (response) => resolve(response))
 
-                adapter.sendSagaRequest('test', { request_id, arbitrary: 'foobar' })
+                adapter.sendSagaRequest('test', { request_id, arbitrary: 'foobar' }, { default_dlq: 'trash' })
 
             })
 
@@ -108,7 +108,7 @@ describe('Sagas unit testing', () => {
                 adapter.subscribeToSagaDLQ('runner1_errors', reject)
 
                 adapter.sendSagaRequest(
-                    'runner1_in', { request_id, arbitrary: 'foobar' }
+                    'runner1_in', { request_id, arbitrary: 'foobar' }, { default_dlq: 'runner1_errors' }
                 )
 
             })
@@ -131,7 +131,7 @@ describe('Sagas unit testing', () => {
                 adapter.subscribeToSagaDLQ('runner1_errors', resolve)
                 adapter.subscribeToSagaQueue('runner2_out', reject)
 
-                adapter.sendSagaRequest('runner1_in', { request_id, shouldError: true })
+                adapter.sendSagaRequest('runner1_in', { request_id, shouldError: true }, { default_dlq: 'runner1_errors' })
 
             })
 

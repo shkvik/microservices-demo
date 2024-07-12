@@ -206,7 +206,9 @@ export class SagaOperator {
         if(!this.contexts[context.name]) this.setupContext(context)
         
         this.queue_adapter!.sendSagaRequest(
-            context.inputQueueName, request
+            context.inputQueueName, request, {
+                default_dlq: context.deadLetterQueueName || 'unknown_errors'
+            }
         )
 
         const responseSub = this.createTaskResponseSub<ResponseDataType>(request.request_id),

@@ -110,7 +110,11 @@ export class SagaRunner {
             try {
 
                 const result = await this.inputTaskHandler(response)
-                this.queue_adapter!.sendSagaRequest(this.context!.outputQueueName!, result)
+                this.queue_adapter!.sendSagaRequest(
+                    this.context!.outputQueueName!,
+                    result,
+                    { default_dlq: this.context!.deadLetterQueueName || 'unknown__dlq' }
+                )
 
 
             } catch(ex) {
