@@ -90,6 +90,8 @@ implements SagaQueuesAdapter {
 
     }
 
+    async dispose() { StubSagaQueuesAdapter.flush() }
+
     public static flush() {
 
         Object.keys(StubSagaQueuesAdapter.ioQueues)

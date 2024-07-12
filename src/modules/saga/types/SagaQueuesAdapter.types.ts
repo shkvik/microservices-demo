@@ -7,6 +7,8 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
 
     connection(): Promise<void>
 
+    dispose(): Promise<void>
+
     sendSagaRequest<RequestType extends DefaultSagaRequestType>(
         request_queue_name: string,
         request: RequestType
