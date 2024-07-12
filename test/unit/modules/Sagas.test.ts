@@ -194,7 +194,7 @@ describe('Sagas unit testing', () => {
 
             expect(context).not.null.and.not.undefined
 
-            new SagaRunner()
+            await new SagaRunner()
                 .useQueueAdapter(new StubSagaQueuesAdapter())
                 .useContext(context)
                 .handleTask(async (task) => {
@@ -202,7 +202,7 @@ describe('Sagas unit testing', () => {
                     task.foo = 'bar'
                     return task
 
-                }).launch()
+                }).launch().ready()
 
             const request_id = randomUUID()
 
@@ -221,7 +221,7 @@ describe('Sagas unit testing', () => {
                 .output('erroneous_out')
                 .dlq('erroneous_error')
 
-            new SagaRunner()
+            await new SagaRunner()
                 .useQueueAdapter(new StubSagaQueuesAdapter())
                 .useContext(context)
                 .handleTask(async () => {
@@ -232,7 +232,7 @@ describe('Sagas unit testing', () => {
 
                     return { ...message, error }
 
-                }).launch()
+                }).launch().ready()
 
             const request_id = randomUUID()
 

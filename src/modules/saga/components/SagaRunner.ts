@@ -183,4 +183,12 @@ export class SagaRunner {
 
     }
 
+    async ready(){
+
+        if(!this.queue_adapter) throw new Error('SagaRunner is not ready: no queue adapter assigned')
+        await this.queue_adapter.connection()
+        return this
+
+    }
+
 }
