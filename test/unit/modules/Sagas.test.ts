@@ -1,0 +1,405 @@
+import 'mocha'
+import { expect } from 'chai'
+import { SagaOperator } from '../../../src/modules/saga/components/SagaOperator'
+import { StubSagaQueuesAdapter } from '../../../src/modules/saga/adapters/queues/Stub.SagaQueues.adapter'
+import { StubSagaResponseChannelAdapter } from '../../../src/modules/saga/adapters/channels/Stub.SagaResponseChannel.adapter'
+import { SagaContext } from '../../../src/modules/saga/components/SagaContext'
+import { SagaRunner } from '../../../src/modules/saga/components/SagaRunner'
+import { randomUUID } from 'crypto'
+import { DefaultSagaResponseType } from '../../../src/modules/saga/types/Saga.types'
+import { SagaEntrypoint } from '../../../src/modules/saga/components/SagaEntrypoint'
+
+describe('Sagas unit testing', () => {
+
+    describe('StubSagaQueueAdapter unit testing', () => {
+
+        before(() => StubSagaQueuesAdapter.flush())
+        after(() => StubSagaQueuesAdapter.flush())
+
+        it('Subscribe to queue and send a message: should react upon message arrival', async function(){
+
+            const adapter = new StubSagaQueuesAdapter(),
+                request_id = randomUUID()
+
+            const result = await new Promise<DefaultSagaResponseType>((resolve) => {
+
+                adapter.subscribeToSagaQueue('test', (response) => resolve(response))
+
+                adapter.sendSagaRequest('test', { request_id, arbitrary: 'foobar' })
+
+            })
+
+            expect(result).not.null.and.not.undefined
+            expect(result.request_id).eq(request_id)
+            expect(result.arbitrary).eq('foobar')
+
+        })
+
+    })
+
+    describe('SagaRunner unit testing', () => {
+
+        before(() => StubSagaQueuesAdapter.flush())
+        after(() => StubSagaQueuesAdapter.flush())
+
+        let runners : SagaRunner[] = []
+
+        it('Define chain of Saga runners: should succeed', () => {
+
+            const runner1 = new SagaRunner()
+                .useQueueAdapter(new StubSagaQueuesAdapter())
+                .useContext(
+                    new SagaContext('saga_test_context')
+                        .input('runner1_in')
+                        .output('runner1_out')
+                        .dlq('runner1_errors')
+                        .nextdlq('runner2_errors')
+                )
+                .handleTask(async (task) => {
+
+                    task.foo = 'bar'
+                    return task
+
+                }).handleError(async (error, input) => {
+
+                    return {...input, error}
+
+                }).handleNextDLQ(async(dead, error) => {
+
+                    dead.handledAsNextDLX = true
+                    delete dead.bar
+                    return { letter: dead, error }
+
+                }).launch()
+
+            runners.push(runner1)
+
+            const runner2 = new SagaRunner()
+                .useQueueAdapter(new StubSagaQueuesAdapter())
+                .useContext(
+                    new SagaContext('saga_test_context')
+                        .input('runner1_out')
+                        .output('runner2_out')
+                        .dlq('runner2_errors')
+                ).handleTask(async (task) => {
+
+                    task.bar = 'foo'
+                    if(task.shouldError) throw new Error('Task is erroneous')
+                    return task
+
+                }).handleError(async (error, input) => {
+
+                    return {...input, error}
+
+                }).launch()
+
+            runners.push(runner2)
+
+        })
+
+        it('Push task to input queue: should be processed correctly and produce valid response', async function() {
+
+            const adapter = new StubSagaQueuesAdapter(),
+                request_id = randomUUID()
+
+            const response = await new Promise<DefaultSagaResponseType>((resolve, reject) => {
+
+                adapter.subscribeToSagaQueue('runner2_out', resolve)
+                adapter.subscribeToSagaDLQ('runner1_errors', reject)
+
+                adapter.sendSagaRequest(
+                    'runner1_in', { request_id, arbitrary: 'foobar' }
+                )
+
+            })
+
+            expect(response).not.null.and.not.undefined
+            expect(response.request_id).eq(request_id)
+            expect(response.arbitrary).eq('foobar')
+            expect(response.bar).eq('foo')
+            expect(response.foo).eq('bar')
+
+        })
+
+        it('Push erroneous task to input queue: should produce error message and pass to DLQ', async function(){
+
+            const adapter = new StubSagaQueuesAdapter(),
+                request_id = randomUUID()
+
+            const response = await new Promise<DefaultSagaResponseType>((resolve, reject) => {
+
+                adapter.subscribeToSagaDLQ('runner1_errors', resolve)
+                adapter.subscribeToSagaQueue('runner2_out', reject)
+
+                adapter.sendSagaRequest('runner1_in', { request_id, shouldError: true })
+
+            })
+
+            expect(response).not.null.and.not.undefined
+            expect(response.request_id).eq(request_id)
+            expect(response.shouldError).eq(true)
+            expect(response.foo).eq('bar')
+            expect(response.bar).undefined
+            
+            const error = adapter.getErrorFromDeadLetter(response)
+
+            expect(error.stack).not.null.and.not.undefined
+            expect(error.stack!).match(/Task is erroneous/)
+
+        })
+
+    })
+
+    describe('SagaOperator unit testing', () => {
+
+        before(() => {
+            StubSagaQueuesAdapter.flush()
+            StubSagaResponseChannelAdapter.flush()
+        })
+        after(() => {
+            StubSagaQueuesAdapter.flush()
+            StubSagaResponseChannelAdapter.flush()
+        })
+
+        let operator: SagaOperator
+
+        it('Create SagaOperator: should succeed', () => {
+
+            operator = new SagaOperator()
+
+        })
+
+        it('Assign queue and response channel adapters: should succeed', () => {
+
+            operator.useQueueAdapter(new StubSagaQueuesAdapter())
+            operator.useResponseChannelAdapter(new StubSagaResponseChannelAdapter())
+
+        })
+
+        it('Initialize Saga context within operator: should succeed', () => {
+
+            const context = new SagaContext('foobar')
+                .input('foo_input')
+                .output('bar_output')
+                .dlq('errors')
+                .timeout(1000)
+
+            operator.setupContext(context)
+
+        })
+
+        it('Init SagaRunner for a given context and execute a task: should succeed', async function(){
+
+            const context = operator.getContext('foobar')!
+
+            expect(context).not.null.and.not.undefined
+
+            new SagaRunner()
+                .useQueueAdapter(new StubSagaQueuesAdapter())
+                .useContext(context)
+                .handleTask(async (task) => {
+
+                    task.foo = 'bar'
+                    return task
+
+                }).launch()
+
+            const request_id = randomUUID()
+
+            const response = await operator.executeTask(context, { request_id })
+
+            expect(response).not.null.and.not.undefined
+            expect(response.request_id).eq(request_id)
+            expect(response.foo).eq('bar')
+
+        })
+
+        it('Execute erroneous task: should receive error message from response publisher', async function(){
+
+            const context = new SagaContext('erroneous')
+                .input('erroneous_in')
+                .output('erroneous_out')
+                .dlq('erroneous_error')
+
+            new SagaRunner()
+                .useQueueAdapter(new StubSagaQueuesAdapter())
+                .useContext(context)
+                .handleTask(async () => {
+
+                    throw new Error('Erroneous message given')
+
+                }).handleError(async (error, message) => {
+
+                    return { ...message, error }
+
+                }).launch()
+
+            const request_id = randomUUID()
+
+            try {
+
+                const response = await operator.executeTask(context, { request_id })
+                throw new Error('Unexpected successful response: '+JSON.stringify(response))
+
+            } catch(ex) {
+
+                expect((ex as Error).stack).match(/Erroneous message given/)
+
+            }
+
+        })
+
+    })
+
+    describe('SagaEntrypoint unit testing', () => {
+
+        before(() => {
+            StubSagaQueuesAdapter.flush()
+            StubSagaResponseChannelAdapter.flush()
+
+        })
+        after(() => {
+            StubSagaQueuesAdapter.flush()
+            StubSagaResponseChannelAdapter.flush()
+        })
+
+        const queueAdapter = new StubSagaQueuesAdapter(),
+            publisherAdapter = new StubSagaResponseChannelAdapter(),
+
+            operator = new SagaOperator()
+                .useQueueAdapter(queueAdapter)
+                .useResponseChannelAdapter(publisherAdapter),
+
+            contextSingle = new SagaContext('entrypoint_saga')
+                .input('entrypoint_in')
+                .output('entrypoint_out')
+                .dlq('entrypoint_error'),
+
+            epSingle = new SagaEntrypoint()
+                .useOperator(operator)
+                .useContext(contextSingle)
+
+        it('Setup SagaRunner for single-node saga', () => {
+
+            new SagaRunner()
+                .useQueueAdapter(queueAdapter)
+                .useContext(contextSingle)
+                .handleTask(async task => {
+                    if(task.shouldError)
+                        throw new Error('Task should throw error here')
+                    return task
+                }).launch()
+
+        })
+
+        it('Execute Saga using predefined context through SagaEntrypoint: should execute and publish response into dedicated channel', async function(){
+
+            const request_id = randomUUID(),
+                response = await epSingle.run({ request_id })
+
+            expect(response).not.null.and.not.undefined
+
+        })
+
+        it('Execute Saga with erroneous message: should execute error handles and publish error into dedicated channel', async function(){
+
+            const request_id = randomUUID()
+
+            try {
+
+                await epSingle.run({ request_id, shouldError: true })
+
+            } catch(ex) {
+
+                expect((ex as Error).stack).match(/Task should throw error here/)
+
+            }
+            
+        })
+
+        const epMultiple = new SagaEntrypoint()
+            .useOperator(operator)
+
+        it('Setup SagaRunners for multi-node saga', () => {
+
+            const contextMultiple = new SagaContext('entrypoint_multi')
+                .input('ep_multi_in')
+                .output('ep_multi_out')
+                .dlq('ep_multi_error');
+
+            epMultiple.useContext(contextMultiple)
+
+            const contextMultiRunner1 = new SagaContext('ep_multi_runner1')
+                    .input('ep_multi_in')
+                    .output('ep_multi_next')
+                    .dlq('ep_multi_error')
+                    .nextdlq('ep_multi_runner2_errors'),
+
+                contextMultiRunner2 = new SagaContext('ep_multi_runner2')
+                    .input('ep_multi_next')
+                    .output('ep_multi_out')
+                    .dlq('ep_multi_runner2_errors')
+
+            new SagaRunner()
+                .useQueueAdapter(queueAdapter)
+                .useContext(contextMultiRunner1)
+                .handleTask(async task => {
+                    task.foo = 'bar'
+                    return task
+                })
+                .handleNextDLQ(async (letter, error) => {
+                    delete letter.foo // rollback
+                    return {
+                        letter,
+                        error: new Error('Second runner thrown error, rolling back:', { cause: error })
+                    }
+                })
+                .launch()
+
+            new SagaRunner()
+                .useQueueAdapter(queueAdapter)
+                .useContext(contextMultiRunner2)
+                .handleTask(async task => {
+
+                    if(task.shouldError) throw new Error('Should error at second runner')
+                    return task
+
+                }).launch()
+
+        })
+
+        it('Execute Saga of multiple runners: should execute and produce valid results', async function(){
+
+            const request_id = randomUUID()
+
+            const response = await epMultiple.run({ request_id  })
+
+            expect(response).not.null.and.not.undefined
+            expect(response.request_id).eq(request_id)
+            expect(response.foo).eq('bar')
+
+        })
+
+        it('Execute Saga with error thrown in a midst of runners chain: should pass error up too entrypoint execution scope', async function(){
+
+            const request_id = randomUUID()
+
+            try {
+
+                await epMultiple.run({ request_id, shouldError: true })
+
+            } catch(ex) {
+                
+                expect((ex as Error).stack).match(/Second runner thrown error/)
+
+                expect((ex as Error).cause).not.undefined
+
+                expect(((ex as Error).cause as Error).stack).match(/Should error at second runner/)
+
+            }
+
+        })
+
+    })
+
+})
