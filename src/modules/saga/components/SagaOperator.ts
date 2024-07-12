@@ -1,8 +1,8 @@
-import { randomUUID } from "crypto";
 import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types";
 import { SagaQueuesAdapter } from "../types/SagaQueuesAdapter.types";
 import { SagaResponseChannelAdapter } from "../types/SagaResponseChannelAdapter.types";
 import { SagaContext } from "./SagaContext";
+import { DEFAULT_UNSPECIFIED_DLQ } from "../constants/Queue.constants";
 
 type SagaResponseAsError<ErrorDataType extends DefaultSagaResponseType> = { response: ErrorDataType, kind: 'error' }
 type SagaResponseAsSuccess<ResponseDataType extends DefaultSagaResponseType> = { response: ResponseDataType, kind: 'success' }
@@ -207,7 +207,7 @@ export class SagaOperator {
         
         this.queue_adapter!.sendSagaRequest(
             context.inputQueueName, request, {
-                default_dlq: context.deadLetterQueueName || 'unknown_errors'
+                default_dlq: context.deadLetterQueueName || DEFAULT_UNSPECIFIED_DLQ
             }
         )
 

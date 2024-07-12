@@ -1,3 +1,4 @@
+import { DEFAULT_UNSPECIFIED_DLQ } from "../constants/Queue.constants";
 import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types";
 import { SagaQueuesAdapter } from "../types/SagaQueuesAdapter.types";
 import { SagaContext } from "./SagaContext";
@@ -20,7 +21,7 @@ async(error, input) => ({ ...input, error: error.stack || error.toString() })
 type SagaNextDeadLetterHandler<
     ErrorMessageDataType extends DefaultSagaResponseType,
     ErrorResponseDataType extends DefaultSagaResponseType
-> = (letter: ErrorMessageDataType, error: Error) => Promise<{ letter: ErrorResponseDataType, error: Error }>
+> = (letter: ErrorMessageDataType, error?: Error) => Promise<{ letter: ErrorResponseDataType, error?: Error }>
 
 const DEFAULT_NEXT_DLQ_HANDLER : SagaNextDeadLetterHandler<DefaultSagaResponseType, DefaultSagaResponseType> = async (letter, error) => ({ letter, error })
 
@@ -94,11 +95,11 @@ export class SagaRunner {
 
     private async tryNotifyWithError<ErrorMessageType extends DefaultSagaResponseType>(
         message: ErrorMessageType,
-        error: Error,
+        error: Error | undefined,
         dlqName?: string,
     ) {
 
-        if(dlqName) this.queue_adapter!.sendDeadLetter(dlqName, message, error)
+        if(dlqName) this.queue_adapter!.sendDeadLetter(dlqName, message, error || new Error('Unknown error'))
         else throw error
 
     }
@@ -110,10 +111,11 @@ export class SagaRunner {
             try {
 
                 const result = await this.inputTaskHandler(response)
+
                 this.queue_adapter!.sendSagaRequest(
                     this.context!.outputQueueName!,
                     result,
-                    { default_dlq: this.context!.deadLetterQueueName || 'unknown__dlq' }
+                    { default_dlq: this.context!.nextDeadLetterQueueName || DEFAULT_UNSPECIFIED_DLQ }
                 )
 
 
@@ -150,8 +152,7 @@ export class SagaRunner {
                 const originalError = this.queue_adapter!.getErrorFromDeadLetter(nextStepDeadLetter)
     
                 const { letter, error } = await this.nextDLQHandler(nextStepDeadLetter, originalError)
-                error.cause = originalError
-                
+                if(error && originalError !== error) error.cause = originalError
                 this.tryNotifyWithError(letter, error, this.context!.deadLetterQueueName)
 
             } catch(ex) {

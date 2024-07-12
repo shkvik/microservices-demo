@@ -44,7 +44,7 @@ describe('Sagas unit testing', () => {
 
         let runners : SagaRunner[] = []
 
-        it('Define chain of Saga runners: should succeed', () => {
+        it('Define chain of Saga runners: should succeed', async function () {
 
             const runner1 = new SagaRunner()
                 .useQueueAdapter(new StubSagaQueuesAdapter())
@@ -64,11 +64,11 @@ describe('Sagas unit testing', () => {
 
                     return {...input, error}
 
-                }).handleNextDLQ(async(dead, error) => {
+                }).handleNextDLQ(async(letter, error) => {
 
-                    dead.handledAsNextDLX = true
-                    delete dead.bar
-                    return { letter: dead, error }
+                    letter.handledAsNextDLX = true
+                    delete letter.bar
+                    return { letter, error }
 
                 }).launch()
 
@@ -143,8 +143,9 @@ describe('Sagas unit testing', () => {
             
             const error = adapter.getErrorFromDeadLetter(response)
 
-            expect(error.stack).not.null.and.not.undefined
-            expect(error.stack!).match(/Task is erroneous/)
+            expect(error).not.null.and.not.undefined
+            expect(error!.stack).not.null.and.not.undefined
+            expect(error!.stack!).match(/Task is erroneous/)
 
         })
 

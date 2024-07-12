@@ -1,6 +1,7 @@
 import { Subject } from "rxjs";
 import { DefaultSagaRequestType, DefaultSagaResponseType } from "../../types/Saga.types";
 import { SagaQueuesAdapter } from "../../types/SagaQueuesAdapter.types";
+import { formatErrorRecursive } from "../../helpers/RecursiveErrorsFormatting.helper";
 
 export class StubSagaQueuesAdapter
 implements SagaQueuesAdapter {
@@ -47,17 +48,16 @@ implements SagaQueuesAdapter {
 
         StubSagaQueuesAdapter.dlQueues[dead_letter_queue_name].next({
             ...input,
-            error: {
-                message: error.message,
-                stack: error.stack,
-                cause: error.cause
-            }
+            __error: formatErrorRecursive(error)
         })
     }
 
-    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error {
+    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error | undefined {
 
-        return letter.error as Error
+        if(letter.__error)
+            return formatErrorRecursive(letter.__error as Error) as Error
+
+        return undefined
 
     }
 

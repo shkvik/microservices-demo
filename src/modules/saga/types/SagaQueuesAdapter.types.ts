@@ -25,7 +25,7 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
         error: Error
     ): Promise<void>
 
-    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error
+    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error | undefined
 
     subscribeToSagaQueue<ResponseType extends DefaultSagaResponseType>(
         response_queue_name: string,
