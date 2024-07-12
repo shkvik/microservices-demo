@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { DefaultSagaRequestType, DefaultSagaResponseType, SagaQueuesAdapterCredentialsType, SagaResponseChannelAdapterCredentialsType } from "../types/Saga.types";
+import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types";
 import { SagaQueuesAdapter } from "../types/SagaQueuesAdapter.types";
 import { SagaResponseChannelAdapter } from "../types/SagaResponseChannelAdapter.types";
 import { SagaContext } from "./SagaContext";

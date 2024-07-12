@@ -1,4 +1,4 @@
-import { DefaultSagaRequestType, DefaultSagaResponseType, SagaQueuesAdapterCredentialsType } from "../types/Saga.types";
+import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types";
 import { SagaQueuesAdapter } from "../types/SagaQueuesAdapter.types";
 import { SagaContext } from "./SagaContext";
 
