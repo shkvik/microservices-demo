@@ -30,7 +30,7 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
     subscribeToSagaQueue<ResponseType extends DefaultSagaResponseType>(
         response_queue_name: string,
         callback: (response: ResponseType) => void
-    ): void
+    ): Promise<void>
 
     subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(
         dlq_name: string,

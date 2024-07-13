@@ -78,7 +78,7 @@ implements SagaQueuesAdapter {
 
     }
 
-    subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(dlq_name: string, callback: (dead_letter: DeadLetterType) => void): void {
+    async subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(dlq_name: string, callback: (dead_letter: DeadLetterType) => void): Promise<void> {
         
         if(!StubSagaQueuesAdapter.dlQueues[dlq_name])
             StubSagaQueuesAdapter.dlQueues[dlq_name] = new Subject()
