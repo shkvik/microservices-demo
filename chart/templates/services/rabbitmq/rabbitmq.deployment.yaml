@@ -79,13 +79,24 @@ spec:
                 values:
                 - rabbitmq
             topologyKey: "kubernetes.io/hostname"
+      {{- with .Values.config.broker.storage }}
       initContainers:
       - name: rabbit-init-storage
         image: busybox
-        command: ['sh', '-c', 'mkdir -p {{ .Values.config.broker.storage.data_path }}/rabbitmq && chown 999:999 {{ .Values.config.broker.storage.data_path }}/rabbitmq']
+        
+        command: ['sh', '-c', 'mkdir -p {{ .data_path }}/rabbitmq && chown 999:999 {{ .data_path }}/rabbitmq -R']
         volumeMounts:
         - name: rabbitmq-data
-          mountPath: {{ .Values.config.broker.storage.data_path }}
+          mountPath: {{ .data_path }}
+      - name: rabbit-clear-quorum-cache
+        image: busybox
+        
+        #TODO: provide better quorum cache cleanup mechanism for after pod evition
+        command: ['sh', '-c', 'cd {{ .data_path }}/rabbitmq && ls | grep -v msg_stores | xargs rm -rf']
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: {{ .data_path }}
+      {{- end }}
       containers:
       - name: rabbitmq
         image: rabbitmq:3-management
