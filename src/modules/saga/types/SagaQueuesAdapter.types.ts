@@ -35,6 +35,6 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
     subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(
         dlq_name: string,
         callback: (dead_letter: DeadLetterType) => void
-    ): void
+    ): Promise<void>
 
 }
