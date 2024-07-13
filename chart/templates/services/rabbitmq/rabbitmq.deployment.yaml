@@ -27,8 +27,8 @@ spec:
   ports:
   - port: 5672
     name: amqp
-  #- port: 15672
-  #  name: management
+  - port: 15672
+    name: management
   selector:
     app: rabbitmq
 
@@ -42,12 +42,12 @@ metadata:
   labels:
     app: rabbitmq
 spec:
+  type: ClusterIP
   ports:
   - port: 5672
     name: amqp
-  #- port: 15672
-  #  name: management
-  clusterIP: None
+  - port: 15672
+    name: management
   selector:
     app: rabbitmq
 
