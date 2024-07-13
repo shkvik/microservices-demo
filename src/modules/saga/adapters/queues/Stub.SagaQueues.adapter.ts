@@ -61,7 +61,10 @@ implements SagaQueuesAdapter {
 
     }
 
-    async subscribeToSagaQueue<ResponseType extends DefaultSagaResponseType>(response_queue_name: string, callback: (response: ResponseType) => void): Promise<void> {
+    async subscribeToSagaQueue<ResponseType extends DefaultSagaResponseType>(
+        response_queue_name: string,
+        callback: (response: ResponseType) => void
+    ): Promise<void> {
 
         await this.connection()
         
