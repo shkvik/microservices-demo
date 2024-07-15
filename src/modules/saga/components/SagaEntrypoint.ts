@@ -10,11 +10,17 @@ export class SagaEntrypoint {
 
     constructor(){}
 
+    /**
+     * Assign an instance of SagaOperator to route requests through and receive responses from response channels
+     */
     useOperator(operator: SagaOperator) {
         this.operator = operator
         return this
     }
 
+    /**
+     * A set of input/output queues to operate within duriing task execution. Should not be the same context used in multi-step Saga runners
+     */
     useContext(context: SagaContext) {
 
         this.context = context;
@@ -22,6 +28,9 @@ export class SagaEntrypoint {
 
     }
 
+    /**
+     * Run a task within current context
+     */
     async run<
         RequestDataType extends DefaultSagaRequestType,
         ResponseDataType extends DefaultSagaResponseType,

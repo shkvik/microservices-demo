@@ -50,6 +50,9 @@ export class SagaRunner {
 
     private inputTaskHandler: SagaTaskHandler<DefaultSagaRequestType, DefaultSagaResponseType> = DEFAULT_TASK_HANDLER
 
+    /**
+     * A task handler for a processed message in a current context step
+     */
     handleTask<
         RequestDataType extends DefaultSagaRequestType,
         ResponseDataType extends DefaultSagaResponseType
@@ -64,6 +67,9 @@ export class SagaRunner {
 
     private errorHandler: SagaRunnerErrorHandler<DefaultSagaRequestType, DefaultSagaResponseType> = DEFAULT_ERROR_HANDLER
 
+    /**
+     * Handles an error within a current execution scope 
+     */
     handleError<
         RequestDataType extends DefaultSagaRequestType,
         ErrorMessageDataType extends DefaultSagaResponseType
@@ -169,6 +175,9 @@ export class SagaRunner {
 
     }
 
+    /**
+     * Set up a runner lifecycle. Establishes connection to a queue and consumer/producer channels to operate in background
+     */
     launch() {
 
         if(!this.context) throw new Error('Saga context should be specified for SagaRunner')
@@ -191,6 +200,9 @@ export class SagaRunner {
 
     }
 
+    /**
+     * Resolves upon adapter's successful connection to a queue
+     */
     async ready(){
 
         if(!this.queue_adapter) throw new Error('SagaRunner is not ready: no queue adapter assigned')
