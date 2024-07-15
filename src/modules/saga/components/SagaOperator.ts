@@ -4,8 +4,8 @@ import { SagaResponseChannelAdapter } from "../types/SagaResponseChannelAdapter.
 import { SagaContext } from "./SagaContext";
 import { DEFAULT_UNSPECIFIED_DLQ } from "../constants/Queue.constants";
 
-type SagaResponseAsError<ErrorDataType extends DefaultSagaResponseType> = { response: ErrorDataType, kind: 'error' }
-type SagaResponseAsSuccess<ResponseDataType extends DefaultSagaResponseType> = { response: ResponseDataType, kind: 'success' }
+type SagaResponseAsError<ErrorDataType extends DefaultSagaResponseType> = { response: ErrorDataType, error: Error, kind: 'error' }
+type SagaResponseAsSuccess<ResponseDataType extends DefaultSagaResponseType> = { response: ResponseDataType, error?: unknown, kind: 'success' }
 
 /**
  * Used as a middleware network provider for running Sagas from request entrypoints 
@@ -131,11 +131,11 @@ export class SagaOperator {
 
         const errorSub = new Promise<SagaResponseAsError<ErrorDataType>>((resolve) => {
 
-            this.response_channel_adapter!.subscribeToError<ErrorDataType>(request_id, (error) => {
+            this.response_channel_adapter!.subscribeToError<ErrorDataType>(request_id, (response, error) => {
 
                 this.response_channel_adapter!.disposeSubscriptions(request_id)
 
-                resolve({ response: error, kind: 'error' })
+                resolve({ response, error, kind: 'error' })
 
             })
 
@@ -171,12 +171,11 @@ export class SagaOperator {
         if(res === true)
             throw new Error('Timeout of '+context.execTimeout+'ms reached while waiting for response from '+context.outputQueueName+' queue')
 
-        const { response, kind } = res as Exclude<typeof res, boolean>
+        const { response, error, kind } = res as Exclude<typeof res, boolean>
 
         switch(true) {
             
             case kind == 'error':
-                const error = this.queue_adapter!.getErrorFromDeadLetter(response)
                 throw error;
             case kind == 'success':
                 return response;

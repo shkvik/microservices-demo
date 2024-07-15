@@ -52,7 +52,7 @@ implements SagaQueuesAdapter {
         })
     }
 
-    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error {
+    private getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error {
 
         if(letter.__error)
             return formatErrorRecursive(letter.__error as Error) as Error

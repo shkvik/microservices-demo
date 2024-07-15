@@ -21,7 +21,7 @@ const DEFAULT_ERROR_HANDLER : SagaRunnerErrorHandler<DefaultSagaRequestType, Def
 type SagaNextDeadLetterHandler<
     ErrorMessageDataType extends DefaultSagaResponseType,
     ErrorResponseDataType extends DefaultSagaResponseType
-> = (error: Error | undefined, input: ErrorMessageDataType) => Promise<{ input: ErrorResponseDataType, error?: Error }>
+> = (error: Error, input: ErrorMessageDataType) => Promise<{ input: ErrorResponseDataType, error: Error }>
 
 const DEFAULT_NEXT_DLQ_HANDLER : SagaNextDeadLetterHandler<DefaultSagaResponseType, DefaultSagaResponseType>
 = async (error, input) => ({ input, error })
@@ -154,14 +154,12 @@ export class SagaRunner {
     private setupSagaNextDLQSub() {
 
         if(this.context!.nextDeadLetterQueueName)
-        this.queue_adapter!.subscribeToSagaDLQ(this.context!.nextDeadLetterQueueName, async (nextStepDeadLetter) => {
+        this.queue_adapter!.subscribeToSagaDLQ(this.context!.nextDeadLetterQueueName, async (nextStepDeadLetter, nextStepError) => {
 
             try {
-
-                const originalError = this.queue_adapter!.getErrorFromDeadLetter(nextStepDeadLetter)
     
-                const { error, input } = await this.nextDLQHandler(originalError, nextStepDeadLetter)
-                if(error && originalError !== error) error.cause = originalError
+                const { error, input } = await this.nextDLQHandler(nextStepError, nextStepDeadLetter)
+                if(error !== nextStepError) error.cause = nextStepError
                 this.tryNotifyWithError(input, error, this.context!.deadLetterQueueName)
 
             } catch(ex) {
