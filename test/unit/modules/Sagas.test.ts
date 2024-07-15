@@ -23,7 +23,7 @@ describe('Sagas unit testing', () => {
 
             const result = await new Promise<DefaultSagaResponseType>((resolve) => {
 
-                adapter.subscribeToSagaQueue('test', (response) => resolve(response))
+                adapter.subscribeToSagaQueue('test', async (response) => resolve(response))
 
                 adapter.sendSagaRequest('test', { request_id, arbitrary: 'foobar' }, { default_dlq: 'trash' })
 
@@ -62,7 +62,7 @@ describe('Sagas unit testing', () => {
 
                 }).handleError(async (error, input) => {
 
-                    return {...input, error}
+                    return { error, input }
 
                 }).handleNextDLQ(async(letter, error) => {
 
@@ -89,7 +89,7 @@ describe('Sagas unit testing', () => {
 
                 }).handleError(async (error, input) => {
 
-                    return {...input, error}
+                    return { error, input }
 
                 }).launch()
 
@@ -104,8 +104,8 @@ describe('Sagas unit testing', () => {
 
             const response = await new Promise<DefaultSagaResponseType>((resolve, reject) => {
 
-                adapter.subscribeToSagaQueue('runner2_out', resolve)
-                adapter.subscribeToSagaDLQ('runner1_errors', reject)
+                adapter.subscribeToSagaQueue('runner2_out', async(msg) => resolve(msg))
+                adapter.subscribeToSagaDLQ('runner1_errors', async(msg, err) => reject(err))
 
                 adapter.sendSagaRequest(
                     'runner1_in', { request_id, arbitrary: 'foobar' }, { default_dlq: 'runner1_errors' }
@@ -126,10 +126,10 @@ describe('Sagas unit testing', () => {
             const adapter = new StubSagaQueuesAdapter(),
                 request_id = randomUUID()
 
-            const response = await new Promise<DefaultSagaResponseType>((resolve, reject) => {
+            const {response, error} : { response: DefaultSagaResponseType, error: Error | undefined} = await new Promise((resolve, reject) => {
 
-                adapter.subscribeToSagaDLQ('runner1_errors', resolve)
-                adapter.subscribeToSagaQueue('runner2_out', reject)
+                adapter.subscribeToSagaDLQ('runner1_errors', async (response, error) => resolve({ response, error }))
+                adapter.subscribeToSagaQueue('runner2_out', async(msg) => reject(new Error('Got response instead of error')))
 
                 adapter.sendSagaRequest('runner1_in', { request_id, shouldError: true }, { default_dlq: 'runner1_errors' })
 
@@ -140,8 +140,6 @@ describe('Sagas unit testing', () => {
             expect(response.shouldError).eq(true)
             expect(response.foo).eq('bar')
             expect(response.bar).undefined
-            
-            const error = adapter.getErrorFromDeadLetter(response)
 
             expect(error).not.null.and.not.undefined
             expect(error!.stack).not.null.and.not.undefined
@@ -229,9 +227,9 @@ describe('Sagas unit testing', () => {
 
                     throw new Error('Erroneous message given')
 
-                }).handleError(async (error, message) => {
+                }).handleError(async (error, input) => {
 
-                    return { ...message, error }
+                    return { error, input }
 
                 }).launch().ready()
 

@@ -13,10 +13,10 @@ const DEFAULT_TASK_HANDLER : SagaTaskHandler<DefaultSagaRequestType, DefaultSaga
 type SagaRunnerErrorHandler<
     RequestDataType extends DefaultSagaRequestType,
     ErrorMessageDataType extends DefaultSagaResponseType
-> = (error: Error, input: RequestDataType) => Promise<ErrorMessageDataType>
+> = (error: Error, input: RequestDataType) => Promise<{ input: ErrorMessageDataType, error: Error }>
 
 const DEFAULT_ERROR_HANDLER : SagaRunnerErrorHandler<DefaultSagaRequestType, DefaultSagaResponseType> =
-async(error, input) => ({ ...input, error: error.stack || error.toString() })
+async(error, input) => ({ input, error })
 
 type SagaNextDeadLetterHandler<
     ErrorMessageDataType extends DefaultSagaResponseType,
@@ -125,9 +125,9 @@ export class SagaRunner {
 
                 try {
 
-                    const errorHandlerResponse = await this.errorHandler(ex as Error, response)
+                    const { error, input } = await this.errorHandler(ex as Error, response)
 
-                    this.tryNotifyWithError(errorHandlerResponse, ex as Error, this.context!.deadLetterQueueName)
+                    this.tryNotifyWithError(input, error, this.context!.deadLetterQueueName)
 
                 } catch(ex) {
 
