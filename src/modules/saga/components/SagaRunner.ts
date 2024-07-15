@@ -106,6 +106,8 @@ export class SagaRunner {
 
     private setupSagaInputQueueSub() {
 
+        if(!this.context) throw new Error('Cannot set up saga input queue consumer without a context')
+
         this.queue_adapter!.subscribeToSagaQueue(this.context!.inputQueueName!, async (response) => {
 
             try {
@@ -138,7 +140,7 @@ export class SagaRunner {
 
             }
 
-        })
+        }, this.context.deadLetterQueueName)
 
     }
 
