@@ -64,11 +64,11 @@ describe('Sagas unit testing', () => {
 
                     return { error, input }
 
-                }).handleNextDLQ(async(letter, error) => {
+                }).handleNextDLQ(async(error, input) => {
 
-                    letter.handledAsNextDLX = true
-                    delete letter.bar
-                    return { letter, error }
+                    input.handledAsNextDLX = true
+                    delete input.bar
+                    return { input, error }
 
                 }).launch()
 
@@ -346,10 +346,10 @@ describe('Sagas unit testing', () => {
                     task.foo = 'bar'
                     return task
                 })
-                .handleNextDLQ(async (letter, error) => {
-                    delete letter.foo // rollback
+                .handleNextDLQ(async (error, input) => {
+                    delete input.foo // rollback
                     return {
-                        letter,
+                        input,
                         error: new Error('Second runner thrown error, rolling back:', { cause: error })
                     }
                 })
