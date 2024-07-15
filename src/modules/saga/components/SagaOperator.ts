@@ -49,7 +49,7 @@ export class SagaOperator {
 
         this.queue_adapter!.subscribeToSagaQueue(
             context.outputQueueName!,
-            (response) => {
+            async (response) => {
 
                 this.response_channel_adapter!.publishResponse(
                     response
@@ -65,7 +65,7 @@ export class SagaOperator {
         if(context.deadLetterQueueName)
         this.queue_adapter!.subscribeToSagaDLQ(
             context.deadLetterQueueName,
-            (dead) => {
+            async (dead) => {
 
                 this.response_channel_adapter!.publishError(dead)
 
