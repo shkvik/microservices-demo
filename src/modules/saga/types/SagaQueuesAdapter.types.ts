@@ -1,5 +1,6 @@
 import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types";
 
+type ConsumerCancelHandler = () => unknown
 
 export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
 
@@ -30,11 +31,11 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
         response_queue_name: string,
         callback: (response: ResponseType) => Promise<void>,
         dead_letter_queue?: string
-    ): Promise<void>
+    ): Promise<ConsumerCancelHandler>
 
     subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(
         dlq_name: string,
         callback: (dead_letter: DeadLetterType, error: Error) => Promise<void>
-    ): Promise<void>
+    ): Promise<ConsumerCancelHandler>
 
 }

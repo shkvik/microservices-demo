@@ -64,7 +64,7 @@ implements SagaQueuesAdapter {
     async subscribeToSagaQueue<ResponseType extends DefaultSagaResponseType>(
         response_queue_name: string,
         callback: (response: ResponseType) => Promise<void>
-    ): Promise<void> {
+    ) {
 
         await this.connection()
         
@@ -72,30 +72,34 @@ implements SagaQueuesAdapter {
             StubSagaQueuesAdapter.ioQueues[response_queue_name] = new Subject()
         }
 
-        StubSagaQueuesAdapter.ioQueues[response_queue_name]
+        const sub = StubSagaQueuesAdapter.ioQueues[response_queue_name]
             .subscribe(async (response) => {
 
                 await callback(response as unknown as ResponseType)
 
             })
 
+        return () => sub.unsubscribe()
+
     }
 
     async subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(
         dlq_name: string,
         callback: (dead_letter: DeadLetterType, error: Error) => Promise<void>
-    ): Promise<void> {
+    ) {
         
         if(!StubSagaQueuesAdapter.dlQueues[dlq_name])
             StubSagaQueuesAdapter.dlQueues[dlq_name] = new Subject()
 
-        StubSagaQueuesAdapter.dlQueues[dlq_name].subscribe(async (dead_letter) => {
+        const sub = StubSagaQueuesAdapter.dlQueues[dlq_name].subscribe(async (dead_letter) => {
 
             const error = this.getErrorFromDeadLetter(dead_letter)
 
             await callback(dead_letter as unknown as DeadLetterType, error)
 
         })
+
+        return () => sub.unsubscribe()
 
     }
 
