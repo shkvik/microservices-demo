@@ -52,12 +52,12 @@ implements SagaQueuesAdapter {
         })
     }
 
-    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error | undefined {
+    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error {
 
         if(letter.__error)
             return formatErrorRecursive(letter.__error as Error) as Error
 
-        return undefined
+        return new Error('Unrecognized error in dead letter: '+JSON.stringify(letter))
 
     }
 
@@ -83,7 +83,7 @@ implements SagaQueuesAdapter {
 
     async subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(
         dlq_name: string,
-        callback: (dead_letter: DeadLetterType, error?: Error) => Promise<void>
+        callback: (dead_letter: DeadLetterType, error: Error) => Promise<void>
     ): Promise<void> {
         
         if(!StubSagaQueuesAdapter.dlQueues[dlq_name])

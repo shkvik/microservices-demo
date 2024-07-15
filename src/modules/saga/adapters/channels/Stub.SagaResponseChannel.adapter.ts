@@ -7,7 +7,7 @@ export class StubSagaResponseChannelAdapter
 implements SagaResponseChannelAdapter {
 
     private static responseChannels: {[requestId: string]: Subject<DefaultSagaResponseType>} = {}
-    private static errorChannels: {[requestId: string]: Subject<DefaultSagaResponseType>} = {}
+    private static errorChannels: {[requestId: string]: Subject<{ response: DefaultSagaResponseType, error: Error }>} = {}
 
     constructor(){}
 
@@ -26,11 +26,14 @@ implements SagaResponseChannelAdapter {
         StubSagaResponseChannelAdapter.responseChannels[response.request_id].next(response)
     }
     
-    publishError<SagaError extends DefaultSagaResponseType>(error: SagaError): void {
-        if(!StubSagaResponseChannelAdapter.errorChannels[error.request_id])
-            StubSagaResponseChannelAdapter.errorChannels[error.request_id] = new Subject()
+    publishError<SagaErrorResponseType extends DefaultSagaResponseType>(
+        response: SagaErrorResponseType,
+        error: Error
+    ): void {
+        if(!StubSagaResponseChannelAdapter.errorChannels[response.request_id])
+            StubSagaResponseChannelAdapter.errorChannels[response.request_id] = new Subject()
         
-        StubSagaResponseChannelAdapter.errorChannels[error.request_id].next(error)
+        StubSagaResponseChannelAdapter.errorChannels[response.request_id].next({ response, error })
     }
 
     async subscribeToResponse<SagaResponse extends DefaultSagaRequestType>(request_id: string, callback: (response: SagaResponse) => void): Promise<SagaResponse> {
@@ -56,26 +59,32 @@ implements SagaResponseChannelAdapter {
 
     }
 
-    async subscribeToError<SagaError extends DefaultSagaResponseType>(request_id: string, callback: (error: SagaError) => void): Promise<SagaError> {
+    async subscribeToError<SagaErrorResponseType extends DefaultSagaResponseType>(
+        request_id: string,
+        callback: (letter: SagaErrorResponseType, error: Error) => void
+    ): Promise<{ response: SagaErrorResponseType, error: Error }> {
         
         if(!StubSagaResponseChannelAdapter.errorChannels[request_id])
             StubSagaResponseChannelAdapter.errorChannels[request_id] = new Subject()
 
-        const error = await new Promise<SagaError>((resolve) => {
+        const { response, error } = await new Promise<{ response: SagaErrorResponseType, error: Error }>((resolve) => {
 
             const sub = StubSagaResponseChannelAdapter.errorChannels[request_id]
-            .subscribe((response) => {
+            .subscribe((errorMessage) => {
+
+                const { response, error } = errorMessage as
+                    { response: SagaErrorResponseType, error: Error }
 
                 sub.unsubscribe()
-                resolve(response as unknown as SagaError)
+                resolve({ response, error })
 
             })
 
         })
 
-        callback(error)
+        callback(response, error)
 
-        return error
+        return { response, error }
 
     }
 

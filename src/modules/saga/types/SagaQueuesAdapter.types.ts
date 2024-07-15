@@ -26,7 +26,7 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
         ttl?: number
     ): Promise<void>
 
-    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error | undefined
+    getErrorFromDeadLetter<LetterType extends DefaultSagaResponseType>(letter: LetterType): Error
 
     subscribeToSagaQueue<ResponseType extends DefaultSagaResponseType>(
         response_queue_name: string,
@@ -36,7 +36,7 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
 
     subscribeToSagaDLQ<DeadLetterType extends DefaultSagaResponseType>(
         dlq_name: string,
-        callback: (dead_letter: DeadLetterType, error?: Error) => Promise<void>
+        callback: (dead_letter: DeadLetterType, error: Error) => Promise<void>
     ): Promise<void>
 
 }

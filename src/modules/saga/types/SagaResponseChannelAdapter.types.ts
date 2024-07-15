@@ -24,9 +24,10 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
      * Publishes a Saga error response received from Saga DLQ message queue for dedicated consumer
      */
     publishError<
-        SagaError extends DefaultSagaResponseType
+        SagaErrorResponseType extends DefaultSagaResponseType
     >(
-        error: SagaError
+        letter: SagaErrorResponseType,
+        error: Error
     ): void;
 
     /**
@@ -40,10 +41,10 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
     /**
      * Subscribes to a channel that produces an error response for dedicated consumer
      */
-    subscribeToError<SagaError extends DefaultSagaResponseType>(
+    subscribeToError<SagaErrorResponseType extends DefaultSagaResponseType>(
         request_id: string,
-        callback: (error: SagaError) => void
-    ): Promise<SagaError>
+        callback: (response: SagaErrorResponseType, error: Error) => void
+    ): Promise<{ response: SagaErrorResponseType, error: Error }>
 
     /**
      * Disposes both successful response and error response channels

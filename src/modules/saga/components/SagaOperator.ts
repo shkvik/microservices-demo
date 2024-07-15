@@ -65,9 +65,9 @@ export class SagaOperator {
         if(context.deadLetterQueueName)
         this.queue_adapter!.subscribeToSagaDLQ(
             context.deadLetterQueueName,
-            async (dead) => {
+            async (dead, error) => {
 
-                this.response_channel_adapter!.publishError(dead)
+                this.response_channel_adapter!.publishError(dead, error)
 
             }
         )
