@@ -1,10 +1,11 @@
+{{- with .Values.config.cache }}
 ## Redis persistent storage
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: cache-storage-class
-  namespace: {{ .Values.namespace }}
-provisioner: {{ .Values.config.cache.storage.provisioner }}
+  namespace: {{ $.Values.namespace }}
+provisioner: {{ .storage.provisioner }}
 allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
 ---
@@ -12,20 +13,20 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: cache-pv
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
   labels:
     type: local
     usage: redis
 spec:
   capacity:
-    storage: {{ .Values.config.cache.storage.pv_size }}
+    storage: {{ .storage.pv_size }}
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: cache-storage-class
   local:
-    path: {{ .Values.config.cache.storage.local_path }}
+    path: {{ .storage.local_path }}{{ .storage.local_subpath }}
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -37,13 +38,13 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: cache-pvc
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
 spec:
   accessModes:
     - ReadWriteOnce  # Should match PV access mode
   resources:
     requests:
-      storage: {{ .Values.config.cache.storage.pvc_size }}
+      storage: {{ .storage.pvc_size }}
   storageClassName: cache-storage-class
 ---
 ## Sentinel persistent storage
@@ -51,8 +52,8 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: cache-coordinator-storage-class
-  namespace: {{ .Values.namespace }}
-provisioner: {{ .Values.config.cache.coordinator.storage.provisioner }}
+  namespace: {{ $.Values.namespace }}
+provisioner: {{ .coordinator.storage.provisioner }}
 allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
 ---
@@ -60,20 +61,20 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: cache-coordinator-pv
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
   labels:
     type: local
     usage: redis-sentinel
 spec:
   capacity:
-    storage: {{ .Values.config.cache.coordinator.storage.pv_size }}
+    storage: {{ .coordinator.storage.pv_size }}
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: cache-coordinator-storage-class
   local:
-    path: {{ .Values.config.cache.coordinator.storage.local_path }}
+    path: {{ .coordinator.storage.local_path }}{{ .coordinator.storage.local_subpath }}
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -85,11 +86,12 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: cache-coordinator-pvc
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
 spec:
   accessModes:
     - ReadWriteOnce  # Should match PV access mode
   resources:
     requests:
-      storage: {{ .Values.config.cache.coordinator.storage.pvc_size }}
+      storage: {{ .coordinator.storage.pvc_size }}
   storageClassName: cache-coordinator-storage-class
+{{- end }}

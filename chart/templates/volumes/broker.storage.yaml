@@ -1,31 +1,30 @@
-## RabbitMQ persistent storage
+{{- with .Values.config.broker.storage }}
+## RabbitMQ datadir storage
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: broker-storage-class
-  namespace: {{ .Values.namespace }}
-provisioner: {{ .Values.config.broker.storage.provisioner }}
+  name: broker-data-storage-class
+  namespace: {{ $.Values.namespace }}
+provisioner: {{ .provisioner }}
 allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: broker-pv
-  namespace: {{ .Values.namespace }}
-  labels:
-    type: local
-    usage: redis
+  name: broker-data-pv
+  namespace: {{ $.Values.namespace }}
 spec:
+  
   capacity:
-    storage: {{ .Values.config.broker.storage.pv_size }}
+    storage: {{ .pv_size }}
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: broker-storage-class
+  storageClassName: broker-data-storage-class
   local:
-    path: {{ .Values.config.broker.storage.local_path }}
+    path: {{ .local_path }}{{ .local_subpath }}
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -36,12 +35,13 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: broker-pvc
-  namespace: {{ .Values.namespace }}
+  name: broker-data-pvc
+  namespace: {{ $.Values.namespace }}
 spec:
   accessModes:
-    - ReadWriteOnce  # Should match PV access mode
+    - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.config.broker.storage.pvc_size }}
-  storageClassName: broker-storage-class
+      storage: {{ .pvc_size }}
+  storageClassName: broker-data-storage-class
+{{- end }}

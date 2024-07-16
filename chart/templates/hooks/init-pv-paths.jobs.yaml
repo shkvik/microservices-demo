@@ -1,0 +1,92 @@
+## Local paths creator job for broker PVs
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-broker-pv-dirs
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+spec:
+  template:
+    spec:
+      containers:
+      - name: create-dirs
+        image: busybox
+        {{- with .Values.config.broker.storage }}
+        env:
+        - name: DATA_PATH
+          value: /mnt/{{ .local_subpath }}{{ .data_path }}
+        {{- end }}
+        command: ["sh", "-c", "mkdir -p $DATA_PATH && chown 999:999 $DATA_PATH -R"]
+        volumeMounts:
+        - name: host-storage
+          mountPath: /mnt
+      restartPolicy: OnFailure
+      volumes:
+      - name: host-storage
+        hostPath:
+          path: {{ .Values.config.broker.storage.local_path }}
+  backoffLimit: 1
+---
+## Local paths creator job for cache PVs
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-cache-pv-dirs
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+spec:
+  template:
+    spec:
+      containers:
+      - name: create-dirs
+        image: busybox
+        {{- with .Values.config.cache.storage }}
+        env:
+        - name: DATA_PATH
+          value: /mnt/{{ .local_subpath }}
+        {{- end }}
+        command: ["sh", "-c", "mkdir -p $DATA_PATH && chown 999:999 $DATA_PATH -R"]
+        volumeMounts:
+        - name: host-storage
+          mountPath: /mnt
+      restartPolicy: OnFailure
+      volumes:
+      - name: host-storage
+        hostPath:
+          path: {{ .Values.config.cache.storage.local_path }}
+  backoffLimit: 1
+---
+## Local paths creator job for cache coordinator PVs
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-cache-coordinator-pv-dirs
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+spec:
+  template:
+    spec:
+      containers:
+      - name: create-dirs
+        image: busybox
+        {{- with .Values.config.cache.coordinator.storage }}
+        env:
+        - name: DATA_PATH
+          value: /mnt/{{ .local_subpath }}
+        {{- end }}
+        command: ["sh", "-c", "mkdir -p $DATA_PATH && chown 999:999 $DATA_PATH -R"]
+        volumeMounts:
+        - name: host-storage
+          mountPath: /mnt
+      restartPolicy: OnFailure
+      volumes:
+      - name: host-storage
+        hostPath:
+          path: {{ .Values.config.cache.coordinator.storage.local_path }}
+  backoffLimit: 1

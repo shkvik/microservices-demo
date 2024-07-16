@@ -72,12 +72,12 @@ spec:
           configMap:
             name: redis-config
       initContainers:
-        - name: redis-init-storage
+        - name: init-redis-data-dir
           image: busybox
           command: ['sh', '-c', 'mkdir -p /redis/redis-data']
           volumeMounts:
-            - name: redis-data
-              mountPath: /redis
+          - name: redis-data
+            mountPath: /redis
       containers:
         - name: redis
           image: redis:7
@@ -139,12 +139,12 @@ spec:
           configMap:
             name: redis-config
       initContainers:
-        - name: redis-init-storage
+        - name: init-redis-data-dir
           image: busybox
           command: ['sh', '-c', 'mkdir -p /redis/redis-data']
           volumeMounts:
-            - name: redis-data
-              mountPath: /redis
+          - name: redis-data
+            mountPath: /redis
       containers:
         - name: redis
           image: redis:7
@@ -152,7 +152,7 @@ spec:
             - containerPort: 6379
           volumeMounts:
             - name: redis-data
-              mountPath: /redis-data
+              mountPath: /redis
             - name: redis-config
               mountPath: /etc/redis/redis.conf
               subPath: redis.conf

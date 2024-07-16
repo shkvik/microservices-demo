@@ -12,7 +12,6 @@ data:
     rabbit@rabbitmq-{{ $i }}.rabbitmq-headless.{{ $namespace }}.svc.cluster.local
     {{- if lt (add1 $i) $replicaCount }},{{- end }}
     {{- end }}
-
 ---
 ## RabbitMQ main discovery service
 apiVersion: v1
@@ -60,7 +59,8 @@ metadata:
   labels:
     app: rabbitmq
 spec:
-  replicas: {{ .Values.config.broker.replication.count }}
+  {{- with .Values.config.broker }}
+  replicas: {{ .replication.count }}
   selector:
     matchLabels:
       app: rabbitmq
@@ -79,24 +79,20 @@ spec:
                 values:
                 - rabbitmq
             topologyKey: "kubernetes.io/hostname"
-      {{- with .Values.config.broker.storage }}
       initContainers:
-      - name: rabbit-init-storage
+      - name: fix-paths-permissions
         image: busybox
-        
-        command: ['sh', '-c', 'mkdir -p {{ .data_path }}/rabbitmq && chown 999:999 {{ .data_path }}/rabbitmq -R']
+        command: ['sh', '-c', 'chown 999:999 -R /var/lib/rabbitmq /var/log/rabbitmq'] # /etc/rabbitmq
         volumeMounts:
         - name: rabbitmq-data
-          mountPath: {{ .data_path }}
-      - name: rabbit-clear-quorum-cache
-        image: busybox
-        
-        #TODO: provide better quorum cache cleanup mechanism for after pod evition
-        command: ['sh', '-c', 'cd {{ .data_path }}/rabbitmq && ls | grep -v msg_stores | xargs rm -rf']
-        volumeMounts:
+          mountPath: /var/lib/rabbitmq
+          subPath: var/lib/rabbitmq
         - name: rabbitmq-data
-          mountPath: {{ .data_path }}
-      {{- end }}
+          mountPath: /var/log/rabbitmq
+          subPath: var/log/rabbitmq
+        #- name: rabbitmq-data
+        #  mountPath: /etc/rabbitmq/conf.d
+        #  subPath: etc/rabbitmq/conf.d
       containers:
       - name: rabbitmq
         image: rabbitmq:3-management
@@ -105,18 +101,23 @@ spec:
         - containerPort: 15672
         volumeMounts:
         - name: rabbitmq-data
-          mountPath: {{ .Values.config.broker.storage.data_path }}
+          mountPath: /var/lib/rabbitmq
+          subPath: var/lib/rabbitmq
+        - name: rabbitmq-data
+          mountPath: /var/log/rabbitmq
+          subPath: var/log/rabbitmq
+        #- name: rabbitmq-data
+        #  mountPath: /etc/rabbitmq/conf.d
+        #  subPath: etc/rabbitmq/conf.d
         env:
         - name: RABBITMQ_ERLANG_COOKIE
-          value: {{ .Values.config.broker.replication.clusterAuth }}
+          value: {{ .replication.clusterAuth }}
         - name: RABBITMQ_NODENAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
         - name: RABBITMQ_USE_LONGNAME
           value: "true"
-        - name: RABBITMQ_MNESIA_DIR
-          value: {{ .Values.config.broker.storage.data_path }}/rabbitmq
         - name: RABBITMQ_CLUSTER_NODES
           valueFrom:
             configMapKeyRef:
@@ -125,4 +126,5 @@ spec:
       volumes:
       - name: rabbitmq-data
         persistentVolumeClaim:
-          claimName: broker-pvc
+          claimName: broker-data-pvc
+  {{- end }}
