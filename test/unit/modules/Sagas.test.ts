@@ -46,7 +46,7 @@ describe('Sagas unit testing', () => {
 
         it('Define chain of Saga runners: should succeed', async function () {
 
-            const runner1 = new SagaRunner()
+            const runner1 = await new SagaRunner()
                 .useQueueAdapter(new StubSagaQueuesAdapter())
                 .useContext(
                     new SagaContext('saga_test_context')
@@ -74,7 +74,7 @@ describe('Sagas unit testing', () => {
 
             runners.push(runner1)
 
-            const runner2 = new SagaRunner()
+            const runner2 = await new SagaRunner()
                 .useQueueAdapter(new StubSagaQueuesAdapter())
                 .useContext(
                     new SagaContext('saga_test_context')
@@ -201,7 +201,7 @@ describe('Sagas unit testing', () => {
                     task.foo = 'bar'
                     return task
 
-                }).launch().ready()
+                }).launch()
 
             const request_id = randomUUID()
 
@@ -231,7 +231,7 @@ describe('Sagas unit testing', () => {
 
                     return { error, input }
 
-                }).launch().ready()
+                }).launch()
 
             const request_id = randomUUID()
 
@@ -398,6 +398,63 @@ describe('Sagas unit testing', () => {
             }
 
         })
+
+    })
+
+    describe('Queue adapter connection disruption behavior testing', () => {
+
+        before(() => {
+            StubSagaQueuesAdapter.flush()
+            StubSagaResponseChannelAdapter.flush()
+
+        })
+        after(() => {
+            StubSagaQueuesAdapter.flush()
+            StubSagaResponseChannelAdapter.flush()
+        })
+
+        it('Reset adapter connection while used by SagaRunner: should successfully restore listeners upon reconnect', async function(){
+
+            const context = new SagaContext('disrupted')
+                .input('disrupted_in')
+                .output('disrupted_out')
+                .dlq('disrupted_dlq'),
+                queueAdapter = new StubSagaQueuesAdapter()
+                
+                await new SagaRunner()
+                    .useQueueAdapter(queueAdapter)
+                    .useContext(context)
+                    .handleTask(async task => {
+                        if(task.shouldError) throw new Error('Should error here')
+                        return task
+                    })
+                    .handleError(async (error, input) => ({ error, input }))
+                    .launch()
+
+            // connection reset
+            StubSagaQueuesAdapter.resetConnection()
+
+            const request_id = randomUUID()
+
+            const response = await new Promise<DefaultSagaResponseType>(async (resolve) => {
+
+                const cancel = await queueAdapter.subscribeToSagaQueue('disrupted_out', async(res) => {
+
+                    await cancel()
+                    resolve(res)
+
+                })
+
+                queueAdapter.sendSagaRequest('disrupted_in', { request_id }, { default_dlq: 'disrupted_dlq' })
+
+            })
+
+            expect(response).not.null.and.not.undefined
+            expect(response.request_id).eq(request_id)
+
+        })
+
+        it('Reset adapter connection while used by SagaOperator: should successfully restore listeners upon reconnect')
 
     })
 

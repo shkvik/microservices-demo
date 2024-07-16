@@ -111,11 +111,10 @@ export class SagaRunner {
 
     }
 
-    private setupSagaInputQueueSub() {
+    private async setupSagaInputQueueSub() {
 
         if(!this.context) throw new Error('Cannot set up saga input queue consumer without a context')
-
-        this.queue_adapter!.subscribeToSagaQueue(this.context!.inputQueueName!, async (response) => {
+        return await this.queue_adapter!.subscribeToSagaQueue(this.context.inputQueueName!, async (response) => {
 
             try {
 
@@ -151,10 +150,10 @@ export class SagaRunner {
 
     }
 
-    private setupSagaNextDLQSub() {
+    private async setupSagaNextDLQSub() {
 
-        if(this.context!.nextDeadLetterQueueName)
-        this.queue_adapter!.subscribeToSagaDLQ(this.context!.nextDeadLetterQueueName, async (nextStepDeadLetter, nextStepError) => {
+        if(this.context && this.context.nextDeadLetterQueueName)
+        return await this.queue_adapter!.subscribeToSagaDLQ(this.context!.nextDeadLetterQueueName, async (nextStepDeadLetter, nextStepError) => {
 
             try {
     
@@ -176,7 +175,7 @@ export class SagaRunner {
     /**
      * Set up a runner lifecycle. Establishes connection to a queue and consumer/producer channels to operate in background
      */
-    launch() {
+    async launch() {
 
         if(!this.context) throw new Error('Saga context should be specified for SagaRunner')
         if(!this.context.inputQueueName)
@@ -187,24 +186,22 @@ export class SagaRunner {
         if(!this.queue_adapter)
             throw new Error('SagaRunner should have a queue adapter assigned before launch')
 
-        this.queue_adapter.connection().then(() => {
+        await this.queue_adapter.connection()
 
-            this.setupSagaInputQueueSub()
-            this.setupSagaNextDLQSub()
+        let cancelInputSub = await this.setupSagaInputQueueSub(),
+            cancelNextDlqSub = await this.setupSagaNextDLQSub()
+
+        this.queue_adapter.onConnectionReset(async () => {
+
+            await cancelInputSub()
+            cancelInputSub = await this.setupSagaInputQueueSub()
+            if(cancelNextDlqSub) await cancelNextDlqSub()
+            
+            cancelInputSub = await this.setupSagaInputQueueSub()
+            cancelNextDlqSub = await this.setupSagaNextDLQSub()
 
         })
 
-        return this
-
-    }
-
-    /**
-     * Resolves upon adapter's successful connection to a queue
-     */
-    async ready(){
-
-        if(!this.queue_adapter) throw new Error('SagaRunner is not ready: no queue adapter assigned')
-        await this.queue_adapter.connection()
         return this
 
     }

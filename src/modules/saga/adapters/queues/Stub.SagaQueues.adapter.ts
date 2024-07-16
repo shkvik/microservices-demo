@@ -105,6 +105,19 @@ implements SagaQueuesAdapter {
 
     async dispose() { StubSagaQueuesAdapter.flush() }
 
+    private static connectionResetEvents = new Subject<void>()
+
+    onConnectionReset(callback: () => Promise<unknown>): void {
+        StubSagaQueuesAdapter.connectionResetEvents.subscribe(callback)
+    }
+
+    /**
+     * Test use only: dispatches connection reset event
+     */
+    public static resetConnection(){
+        StubSagaQueuesAdapter.connectionResetEvents.next()
+    }
+
     public static flush() {
 
         Object.keys(StubSagaQueuesAdapter.ioQueues)
