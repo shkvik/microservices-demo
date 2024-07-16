@@ -90,9 +90,6 @@ spec:
         - name: rabbitmq-data
           mountPath: /var/log/rabbitmq
           subPath: var/log/rabbitmq
-        #- name: rabbitmq-data
-        #  mountPath: /etc/rabbitmq/conf.d
-        #  subPath: etc/rabbitmq/conf.d
       containers:
       - name: rabbitmq
         image: rabbitmq:3-management
@@ -106,18 +103,11 @@ spec:
         - name: rabbitmq-data
           mountPath: /var/log/rabbitmq
           subPath: var/log/rabbitmq
-        #- name: rabbitmq-data
-        #  mountPath: /etc/rabbitmq/conf.d
-        #  subPath: etc/rabbitmq/conf.d
         env:
         - name: RABBITMQ_ERLANG_COOKIE
           value: {{ .replication.clusterAuth }}
         - name: RABBITMQ_NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: RABBITMQ_USE_LONGNAME
-          value: "true"
+          value: 'rabbit@localhost'
         - name: RABBITMQ_CLUSTER_NODES
           valueFrom:
             configMapKeyRef:
