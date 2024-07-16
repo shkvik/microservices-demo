@@ -1,6 +1,6 @@
 import { DefaultSagaRequestType, DefaultSagaResponseType } from "../types/Saga.types";
 
-type ConsumerCancelHandler = () => unknown
+type ConsumerCancelHandler = () => Promise<unknown>
 
 export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
 

@@ -79,7 +79,7 @@ implements SagaQueuesAdapter {
 
             })
 
-        return () => sub.unsubscribe()
+        return async () => sub.unsubscribe()
 
     }
 
@@ -99,7 +99,7 @@ implements SagaQueuesAdapter {
 
         })
 
-        return () => sub.unsubscribe()
+        return async () => sub.unsubscribe()
 
     }
 
