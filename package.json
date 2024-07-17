@@ -8,7 +8,7 @@
     "watch": "npx tsc --watch",
     "clean": "rm -rf ./dist",
     "test": "npx mocha -r source-map-support/register ./dist/test/unit/**/*.js --no-deprecation",
-    "test:integration": "npx mocha -r source-map-support/register ./dist/test/integration/**/*.js --no-deprecation"
+    "test:integration": "npx dotenv-cli -e .env.cluster -- npx mocha -r source-map-support/register ./dist/test/integration/**/*.js --no-deprecation"
   },
   "author": "Zelbov",
   "license": "MIT",
@@ -25,6 +25,7 @@
   },
   "peerDependencies": {
     "amqplib": "^0.10.4",
+    "dotenv-cli": "^7.4.2",
     "rxjs": "^7.8.1"
   }
 }
