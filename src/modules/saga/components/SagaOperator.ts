@@ -47,7 +47,7 @@ export class SagaOperator {
 
     private initSagaSub(context: SagaContext) {
 
-        this.queue_adapter!.subscribeToSagaQueue(
+        return this.queue_adapter!.subscribeToSagaQueue(
             context.outputQueueName!,
             async (response) => {
 
@@ -63,7 +63,7 @@ export class SagaOperator {
     private initSagaDlqSub(context: SagaContext) {
 
         if(context.deadLetterQueueName)
-        this.queue_adapter!.subscribeToSagaDLQ(
+        return this.queue_adapter!.subscribeToSagaDLQ(
             context.deadLetterQueueName,
             async (dead, error) => {
 
@@ -204,7 +204,7 @@ export class SagaOperator {
 
         if(!this.contexts[context.name]) this.setupContext(context)
         
-        this.queue_adapter!.sendSagaRequest(
+        await this.queue_adapter!.sendSagaRequest(
             context.inputQueueName, request, {
                 default_dlq: context.deadLetterQueueName || DEFAULT_UNSPECIFIED_DLQ
             }

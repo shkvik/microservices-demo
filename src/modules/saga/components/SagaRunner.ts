@@ -120,7 +120,7 @@ export class SagaRunner {
 
                 const result = await this.inputTaskHandler(response)
 
-                this.queue_adapter!.sendSagaRequest(
+                await this.queue_adapter!.sendSagaRequest(
                     this.context!.outputQueueName!,
                     result,
                     { default_dlq: this.context!.nextDeadLetterQueueName || DEFAULT_UNSPECIFIED_DLQ }
@@ -133,7 +133,7 @@ export class SagaRunner {
 
                     const { error, input } = await this.errorHandler(ex as Error, response)
 
-                    this.tryNotifyWithError(input, error, this.context!.deadLetterQueueName)
+                    await this.tryNotifyWithError(input, error, this.context!.deadLetterQueueName)
 
                 } catch(ex) {
 
@@ -188,19 +188,8 @@ export class SagaRunner {
 
         await this.queue_adapter.connection()
 
-        let cancelInputSub = await this.setupSagaInputQueueSub(),
-            cancelNextDlqSub = await this.setupSagaNextDLQSub()
-
-        this.queue_adapter.onConnectionReset(async () => {
-
-            await cancelInputSub()
-            cancelInputSub = await this.setupSagaInputQueueSub()
-            if(cancelNextDlqSub) await cancelNextDlqSub()
-            
-            cancelInputSub = await this.setupSagaInputQueueSub()
-            cancelNextDlqSub = await this.setupSagaNextDLQSub()
-
-        })
+        await this.setupSagaInputQueueSub()
+        await this.setupSagaNextDLQSub()
 
         return this
 

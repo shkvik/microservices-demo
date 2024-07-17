@@ -426,13 +426,11 @@ describe('Sagas unit testing', () => {
                     .useContext(context)
                     .handleTask(async task => {
                         if(task.shouldError) throw new Error('Should error here')
+                        task.succeeded = true
                         return task
                     })
                     .handleError(async (error, input) => ({ error, input }))
                     .launch()
-
-            // connection reset
-            StubSagaQueuesAdapter.resetConnection()
 
             const request_id = randomUUID()
 
@@ -445,16 +443,61 @@ describe('Sagas unit testing', () => {
 
                 })
 
+                // connection reset after subscription
+                StubSagaQueuesAdapter.resetConnection()
+
                 queueAdapter.sendSagaRequest('disrupted_in', { request_id }, { default_dlq: 'disrupted_dlq' })
 
             })
 
             expect(response).not.null.and.not.undefined
             expect(response.request_id).eq(request_id)
+            expect(response.succeeded).eq(true)
 
         })
 
-        it('Reset adapter connection while used by SagaOperator: should successfully restore listeners upon reconnect')
+        it('Reset adapter connection while used by SagaOperator: should successfully restore listeners upon reconnect', async function(){
+
+            const context = new SagaContext('disrupted')
+                .input('disrupted_in')
+                .output('disrupted_out')
+                .dlq('disrupted_dlq'),
+                queueAdapter = new StubSagaQueuesAdapter()
+                
+                await new SagaRunner()
+                    .useQueueAdapter(queueAdapter)
+                    .useContext(context)
+                    .handleTask(async task => {
+                        if(task.shouldError) throw new Error('Should error here')
+                        task.succeeded = true
+                        return task
+                    })
+                    .handleError(async (error, input) => ({ error, input }))
+                    .launch()
+
+            const request_id = randomUUID()
+
+            const operator = new SagaOperator()
+                    .useQueueAdapter(queueAdapter)
+                    .useResponseChannelAdapter(new StubSagaResponseChannelAdapter())
+
+            const response = await new Promise<DefaultSagaResponseType>((resolve, reject) => {
+
+                operator.executeTask(context, { request_id }).then((response) => {
+
+                    resolve(response)
+
+                })
+
+                // connection reset during task execution
+                StubSagaQueuesAdapter.resetConnection()
+
+            })
+
+            expect(response.request_id).eq(request_id)
+            expect(response.succeeded).eq(true)
+
+        })
 
     })
 
