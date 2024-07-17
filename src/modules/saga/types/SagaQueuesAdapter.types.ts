@@ -38,6 +38,4 @@ export interface SagaQueuesAdapter<CredentialsType extends {} = {}> {
         callback: (dead_letter: DeadLetterType, error: Error) => Promise<void>
     ): Promise<ConsumerCancelHandler>
 
-    onConnectionReset(callback: () => Promise<unknown>): void
-
 }

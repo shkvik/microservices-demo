@@ -107,10 +107,6 @@ implements SagaQueuesAdapter {
 
     private static connectionResetEvents = new Subject<void>()
 
-    onConnectionReset(callback: () => Promise<unknown>): void {
-        StubSagaQueuesAdapter.connectionResetEvents.subscribe(callback)
-    }
-
     /**
      * Test use only: dispatches connection reset event
      */
