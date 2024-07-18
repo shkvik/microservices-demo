@@ -1,5 +1,5 @@
 import { Subject } from "rxjs";
-import { DefaultSagaRequestType, DefaultSagaResponseType } from "../../types/Saga.types";
+import { DefaultSagaResponseType } from "../../types/Saga.types";
 import { SagaResponseChannelAdapter } from "../../types/SagaResponseChannelAdapter.types";
 
 

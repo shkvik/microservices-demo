@@ -1,6 +1,6 @@
 import { AsyncLock } from "../../../async-lock/AsyncLocks";
 import { formatErrorRecursive } from "../../helpers/RecursiveErrorsFormatting.helper";
-import { DefaultSagaRequestType, DefaultSagaResponseType } from "../../types/Saga.types";
+import { DefaultSagaResponseType } from "../../types/Saga.types";
 import { SagaResponseChannelAdapter } from "../../types/SagaResponseChannelAdapter.types";
 import { RedisClientOptions, RedisClientType, RedisDefaultModules, RedisFunctions, RedisModules, RedisScripts, createClient } from 'redis'
 
