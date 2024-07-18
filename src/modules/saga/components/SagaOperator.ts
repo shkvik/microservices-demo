@@ -111,9 +111,9 @@ export class SagaOperator {
 
         const responseSub = new Promise<SagaResponseAsSuccess<ResponseDataType>>((resolve) => {
 
-            this.response_channel_adapter!.subscribeToResponse<ResponseDataType>(request_id, (response) => {
+            this.response_channel_adapter!.subscribeToResponse<ResponseDataType>(request_id, async (response) => {
 
-                this.response_channel_adapter!.disposeSubscriptions(request_id)
+                await this.response_channel_adapter!.disposeSubscriptions(request_id)
                 
                 resolve({ response, kind: 'success' })
 
@@ -129,9 +129,9 @@ export class SagaOperator {
 
         const errorSub = new Promise<SagaResponseAsError<ErrorDataType>>((resolve) => {
 
-            this.response_channel_adapter!.subscribeToError<ErrorDataType>(request_id, (response, error) => {
+            this.response_channel_adapter!.subscribeToError<ErrorDataType>(request_id, async (response, error) => {
 
-                this.response_channel_adapter!.disposeSubscriptions(request_id)
+                await this.response_channel_adapter!.disposeSubscriptions(request_id)
 
                 resolve({ response, error, kind: 'error' })
 
