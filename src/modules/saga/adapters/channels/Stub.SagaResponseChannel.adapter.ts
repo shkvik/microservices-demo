@@ -39,7 +39,7 @@ implements SagaResponseChannelAdapter {
     async subscribeToResponse<SagaResponse extends DefaultSagaResponseType>(
         request_id: string,
         callback: (response: SagaResponse) => Promise<void>
-    ): Promise<SagaResponse> {
+    ): Promise<void> {
 
         if(!StubSagaResponseChannelAdapter.responseChannels[request_id])
             StubSagaResponseChannelAdapter.responseChannels[request_id] = new Subject()
@@ -56,16 +56,14 @@ implements SagaResponseChannelAdapter {
 
         })
 
-        callback(pulled)
-
-        return pulled
+        await callback(pulled)
 
     }
 
     async subscribeToError<SagaErrorResponseType extends DefaultSagaResponseType>(
         request_id: string,
         callback: (letter: SagaErrorResponseType, error: Error) => Promise<void>
-    ): Promise<{ response: SagaErrorResponseType, error: Error }> {
+    ): Promise<void> {
         
         if(!StubSagaResponseChannelAdapter.errorChannels[request_id])
             StubSagaResponseChannelAdapter.errorChannels[request_id] = new Subject()
@@ -85,9 +83,7 @@ implements SagaResponseChannelAdapter {
 
         })
 
-        callback(response, error)
-
-        return { response, error }
+        await callback(response, error)
 
     }
 

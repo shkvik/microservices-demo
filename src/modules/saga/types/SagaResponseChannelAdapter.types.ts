@@ -36,7 +36,7 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
     subscribeToResponse<SagaResponse extends DefaultSagaResponseType>(
         request_id: string,
         callback: (response: SagaResponse) => Promise<void>
-    ): Promise<SagaResponse>;
+    ): Promise<void>;
 
     /**
      * Subscribes to a channel that produces an error response for dedicated consumer
@@ -44,7 +44,7 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
     subscribeToError<SagaErrorResponseType extends DefaultSagaResponseType>(
         request_id: string,
         callback: (response: SagaErrorResponseType, error: Error) => Promise<void>
-    ): Promise<{ response: SagaErrorResponseType, error: Error }>
+    ): Promise<void>
 
     /**
      * Disposes both successful response and error response channels
