@@ -24,7 +24,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: broker-data-storage-class
   local:
-    path: {{ .local_path }}{{ .local_subpath }}
+    path: {{ .local_path }}
   nodeAffinity:
     required:
       nodeSelectorTerms:

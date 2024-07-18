@@ -72,12 +72,13 @@ spec:
           configMap:
             name: redis-config
       initContainers:
-        - name: init-redis-data-dir
+        - name: fix-paths-permissions
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /redis/redis-data']
+          command: ['sh', '-c', 'mkdir -p /redis/redis-data && chown -R 999:999 /redis']
           volumeMounts:
           - name: redis-data
             mountPath: /redis
+            subPath: {{ .Values.config.cache.storage.local_subpath }}
       containers:
         - name: redis
           image: redis:7
@@ -86,6 +87,7 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /redis
+              subPath: {{ .Values.config.cache.storage.local_subpath }}
             - name: redis-config
               mountPath: /etc/redis/redis.conf
               subPath: redis.conf
@@ -139,12 +141,13 @@ spec:
           configMap:
             name: redis-config
       initContainers:
-        - name: init-redis-data-dir
+        - name: fix-paths-permissions
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /redis/redis-data']
+          command: ['sh', '-c', 'mkdir -p /redis/redis-data && chown -R 999:999 /redis']
           volumeMounts:
           - name: redis-data
             mountPath: /redis
+            subPath: {{ .Values.config.cache.storage.local_subpath }}
       containers:
         - name: redis
           image: redis:7
@@ -153,6 +156,7 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /redis
+              subPath: {{ .Values.config.cache.storage.local_subpath }}
             - name: redis-config
               mountPath: /etc/redis/redis.conf
               subPath: redis.conf
