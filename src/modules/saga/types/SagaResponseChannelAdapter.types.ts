@@ -33,7 +33,7 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
     /**
      * Subscribes to a channel that produces a response for dedicated consumer
      */
-    subscribeToResponse<SagaResponse extends DefaultSagaRequestType>(
+    subscribeToResponse<SagaResponse extends DefaultSagaResponseType>(
         request_id: string,
         callback: (response: SagaResponse) => void
     ): Promise<SagaResponse>;

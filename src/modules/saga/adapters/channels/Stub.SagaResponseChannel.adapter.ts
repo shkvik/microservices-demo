@@ -36,7 +36,7 @@ implements SagaResponseChannelAdapter {
         StubSagaResponseChannelAdapter.errorChannels[response.request_id].next({ response, error })
     }
 
-    async subscribeToResponse<SagaResponse extends DefaultSagaRequestType>(request_id: string, callback: (response: SagaResponse) => void): Promise<SagaResponse> {
+    async subscribeToResponse<SagaResponse extends DefaultSagaResponseType>(request_id: string, callback: (response: SagaResponse) => void): Promise<SagaResponse> {
 
         if(!StubSagaResponseChannelAdapter.responseChannels[request_id])
             StubSagaResponseChannelAdapter.responseChannels[request_id] = new Subject()
