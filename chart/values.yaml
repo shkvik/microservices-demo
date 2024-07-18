@@ -8,14 +8,14 @@ config:
       provisioner: kubernetes.io/no-provisioner
       pv_size: 12Gi
       pvc_size: 12Gi
-      local_path: /tmp
+      local_path: /var/tmp
       local_subpath: /redis
     coordinator:
       storage:
         provisioner: kubernetes.io/no-provisioner
         pv_size: 1Gi
         pvc_size: 1Gi
-        local_path: /tmp
+        local_path: /var/tmp
         local_subpath: /redis-sentinel
     replication:
       count: 3
@@ -27,7 +27,7 @@ config:
       provisioner: kubernetes.io/no-provisioner
       pv_size: 20Gi
       pvc_size: 20Gi
-      local_path: /tmp
+      local_path: /var/tmp
       local_subpath: /rabbitmq
     replication:
       count: 1 # Increase only for environments consisting of enough cluster nodes, otherwise it will fail since impossible to maintain a quorum
