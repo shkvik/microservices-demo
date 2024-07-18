@@ -186,8 +186,6 @@ export class SagaRunner {
         if(!this.queue_adapter)
             throw new Error('SagaRunner should have a queue adapter assigned before launch')
 
-        await this.queue_adapter.connection()
-
         await this.setupSagaInputQueueSub()
         await this.setupSagaNextDLQSub()
 
