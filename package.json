@@ -26,6 +26,7 @@
   "peerDependencies": {
     "amqplib": "^0.10.4",
     "dotenv-cli": "^7.4.2",
+    "redis": "^4.6.15",
     "rxjs": "^7.8.1"
   }
 }
