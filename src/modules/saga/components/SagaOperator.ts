@@ -202,7 +202,7 @@ export class SagaOperator {
 
         if(!this.contexts[context.name]) this.setupContext(context)
         
-        await this.queue_adapter!.sendSagaRequest(
+        this.queue_adapter!.sendSagaRequest(
             context.inputQueueName, request, {
                 default_dlq: context.deadLetterQueueName || DEFAULT_UNSPECIFIED_DLQ
             }
