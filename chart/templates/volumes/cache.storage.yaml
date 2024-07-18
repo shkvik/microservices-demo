@@ -26,7 +26,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: cache-storage-class
   local:
-    path: {{ .storage.local_path }}{{ .storage.local_subpath }}
+    path: {{ .storage.local_path }}
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -74,7 +74,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: cache-coordinator-storage-class
   local:
-    path: {{ .coordinator.storage.local_path }}{{ .coordinator.storage.local_subpath }}
+    path: {{ .coordinator.storage.local_path }}
   nodeAffinity:
     required:
       nodeSelectorTerms:
