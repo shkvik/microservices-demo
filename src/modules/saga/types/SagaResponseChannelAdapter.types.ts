@@ -18,7 +18,7 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
         SagaResponse extends DefaultSagaResponseType
     >(
         response: SagaResponse
-    ): void;
+    ): Promise<void>;
 
     /**
      * Publishes a Saga error response received from Saga DLQ message queue for dedicated consumer
@@ -28,7 +28,7 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
     >(
         letter: SagaErrorResponseType,
         error: Error
-    ): void;
+    ): Promise<void>;
 
     /**
      * Subscribes to a channel that produces a response for dedicated consumer
@@ -50,5 +50,10 @@ export interface SagaResponseChannelAdapter<CredentialsType extends {} = {}> {
      * Disposes both successful response and error response channels
      */
     disposeSubscriptions(request_id: string): Promise<void>;
+
+    /**
+     * Disposes adapter instance
+     */
+    dispose(): Promise<void>
 
 }

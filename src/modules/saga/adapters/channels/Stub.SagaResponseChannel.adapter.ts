@@ -19,17 +19,17 @@ implements SagaResponseChannelAdapter {
         return;
     }
 
-    publishResponse<SagaResponse extends DefaultSagaResponseType>(response: SagaResponse): void {
+    async publishResponse<SagaResponse extends DefaultSagaResponseType>(response: SagaResponse): Promise<void> {
         if(!StubSagaResponseChannelAdapter.responseChannels[response.request_id])
             StubSagaResponseChannelAdapter.responseChannels[response.request_id] = new Subject()
         
         StubSagaResponseChannelAdapter.responseChannels[response.request_id].next(response)
     }
     
-    publishError<SagaErrorResponseType extends DefaultSagaResponseType>(
+    async publishError<SagaErrorResponseType extends DefaultSagaResponseType>(
         response: SagaErrorResponseType,
         error: Error
-    ): void {
+    ): Promise<void> {
         if(!StubSagaResponseChannelAdapter.errorChannels[response.request_id])
             StubSagaResponseChannelAdapter.errorChannels[response.request_id] = new Subject()
         
@@ -120,6 +120,10 @@ implements SagaResponseChannelAdapter {
                 delete StubSagaResponseChannelAdapter.errorChannels[key]
             })
 
+    }
+
+    async dispose(): Promise<void> {
+        StubSagaResponseChannelAdapter.flush()
     }
 
 }

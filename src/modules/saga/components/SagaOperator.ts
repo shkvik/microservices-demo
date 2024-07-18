@@ -51,9 +51,7 @@ export class SagaOperator {
             context.outputQueueName!,
             async (response) => {
 
-                this.response_channel_adapter!.publishResponse(
-                    response
-                )
+                await this.response_channel_adapter!.publishResponse(response)
 
             }, context.deadLetterQueueName
         )
@@ -67,7 +65,7 @@ export class SagaOperator {
             context.deadLetterQueueName,
             async (dead, error) => {
 
-                this.response_channel_adapter!.publishError(dead, error)
+                await this.response_channel_adapter!.publishError(dead, error)
 
             }
         )
