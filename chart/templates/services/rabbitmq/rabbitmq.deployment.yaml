@@ -86,10 +86,10 @@ spec:
         volumeMounts:
         - name: rabbitmq-data
           mountPath: /var/lib/rabbitmq
-          subPath: var/lib/rabbitmq
+          subPath: {{ .storage.local_subpath }}/var/lib/rabbitmq
         - name: rabbitmq-data
           mountPath: /var/log/rabbitmq
-          subPath: var/log/rabbitmq
+          subPath: {{ .storage.local_subpath }}/var/log/rabbitmq
       containers:
       - name: rabbitmq
         image: rabbitmq:3-management
@@ -99,10 +99,10 @@ spec:
         volumeMounts:
         - name: rabbitmq-data
           mountPath: /var/lib/rabbitmq
-          subPath: var/lib/rabbitmq
+          subPath: {{ .storage.local_subpath }}/var/lib/rabbitmq
         - name: rabbitmq-data
           mountPath: /var/log/rabbitmq
-          subPath: var/log/rabbitmq
+          subPath: {{ .storage.local_subpath }}/var/log/rabbitmq
         env:
         - name: RABBITMQ_ERLANG_COOKIE
           value: {{ .replication.clusterAuth }}

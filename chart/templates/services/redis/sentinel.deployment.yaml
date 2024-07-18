@@ -46,17 +46,19 @@ spec:
           persistentVolumeClaim:
             claimName: cache-coordinator-pvc
       initContainers:
-        - name: init-sentinel-storage
+        - name: fix-path-permissions
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /sentinel/sentinel-data']
+          command: ['sh', '-c', 'mkdir -p /sentinel/sentinel-data && chown -R 999:999 /sentinel']
           volumeMounts:
             - name: sentinel-storage
               mountPath: /sentinel
+              subPath: {{ .Values.config.cache.coordinator.storage.local_subpath }}
         - name: load-sentinel-config
           image: busybox
           volumeMounts:
             - name: sentinel-storage
               mountPath: /sentinel
+              subPath: {{ .Values.config.cache.coordinator.storage.local_subpath }}
             - name: sentinel-config
               mountPath: /etc/sentinel/sentinel.conf
               subPath: sentinel.conf
@@ -67,6 +69,7 @@ spec:
           volumeMounts:
             - name: sentinel-storage
               mountPath: /sentinel
+              subPath: {{ .Values.config.cache.coordinator.storage.local_subpath }}
           command: ['redis-sentinel', '/sentinel/sentinel-data/sentinel.conf', '--dir', '/sentinel/sentinel-data']
           ports:
             - containerPort: 26379
