@@ -12,6 +12,20 @@ data:
     sentinel parallel-syncs redis-main 1
     sentinel resolve-hostnames yes
 ---
+## Sentinel cluster discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: redis-sentinel
+  ports:
+  - protocol: TCP
+    port: 26379
+  type: {{ .Values.config.cache.network.serviceType }}
+---
 ## Sentinel priority class
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
