@@ -6,16 +6,16 @@ export class AsyncLock {
     private _waiting: (() => void)[]
 
     constructor(){
-    	this._locked = false;
+        this._locked = false;
         this._waiting = []
     }
 
     acquire(){
 
-    	if(!this._locked) {
-    		this._locked = true;
-			return new Promise<void>(r => r())
-		} else return new Promise<void>(r => this._waiting.push(r))
+        if(!this._locked) {
+            this._locked = true;
+            return new Promise<void>(r => r())
+        } else return new Promise<void>(r => this._waiting.push(r))
 
     }
 
