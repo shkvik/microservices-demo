@@ -4,6 +4,9 @@ import { RedisSagaResponseChannelAdapter } from '../../../src/modules/saga/adapt
 import { randomUUID } from 'crypto'
 import { DefaultSagaResponseType } from '../../../src/modules/saga/types/Saga.types'
 import { StubSagaQueuesAdapter } from '../../../src/modules/saga/adapters/queues/Stub.SagaQueues.adapter'
+import { SagaContext } from '../../../src/modules/saga/components/SagaContext'
+import { SagaRunner } from '../../../src/modules/saga/components/SagaRunner'
+import { SagaOperator } from '../../../src/modules/saga/components/SagaOperator'
 
 describe('RedisSagaResponseChannelAdapter integration tests', () => {
 
@@ -140,9 +143,58 @@ describe('RedisSagaResponseChannelAdapter integration tests', () => {
 
         })
 
-        it('Create one-step saga context, run and attach to SagaOperator')
-        it('Send task to saga through Operator that uses Redis adapter: should obtain response from pub channel')
-        it('Send erroneous task to saga: should obtain error response from error pub channel')
+        const context = new SagaContext('pubsub')
+                .input('pubsub_input')
+                .output('pubsub_output')
+                .dlq('pubsub_dlq')
+
+        const operator = new SagaOperator()
+            .useQueueAdapter(queueAdapter)
+            .useResponseChannelAdapter(adapter)
+
+        it('Create one-step saga context, run and attach to SagaOperator', async function(){
+
+            await new SagaRunner()
+                .useQueueAdapter(queueAdapter)
+                .useContext(context)
+                .handleTask(async task => {
+
+                    if(task.shouldError) throw new Error('Should error')
+                    
+                    task.complete = true
+                    return task
+
+                })
+                .launch()
+
+        })
+
+        it('Send task to saga through Operator that uses Redis adapter: should obtain response from pub channel', async function(){
+
+            const request_id = randomUUID()
+
+            const response = await operator.executeTask(context, { request_id })
+
+            expect(response.request_id).eq(request_id)
+            expect(response.complete).eq(true)
+
+        })
+        it('Send erroneous task to saga: should obtain error response from error pub channel', async function(){
+
+            const request_id = randomUUID()
+
+            try {
+
+                await operator.executeTask(context, { request_id, shouldError: true })
+
+            } catch(ex) {
+
+                expect((ex as Error).message).contain('Should error')
+                
+            }
+            
+
+        })
 
     })
 
