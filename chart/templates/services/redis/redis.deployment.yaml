@@ -1,18 +1,20 @@
+{{- with .Values.config.cache }}
 ## Redis main/worker configs
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: redis-config
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
 data:
-  redis.conf: ""
+  redis.conf: |
+    bind 0.0.0.0
 ---
 ## Redis mainnode internal discovery service
 apiVersion: v1
 kind: Service
 metadata:
   name: redis-main-discovery
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
 spec:
   selector:
     app: redis
@@ -22,19 +24,19 @@ spec:
     port: 6379
   type: ClusterIP
 ---
-## Redis pods cluster discovery (load balancing)
+## Redis cluster discovery (load balancing)
 apiVersion: v1
 kind: Service
 metadata:
   name: redis-pool
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
 spec:
   selector:
     app: redis
   ports:
   - protocol: TCP
     port: 6379
-  type: {{ .Values.config.cache.network.serviceType }}
+  type: {{ .network.serviceType }}
 ---
 ## Redis main node priority class
 apiVersion: scheduling.k8s.io/v1
@@ -50,7 +52,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-main
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
 spec:
   replicas: 1
   selector:
@@ -72,13 +74,22 @@ spec:
           configMap:
             name: redis-config
       initContainers:
-        - name: fix-paths-permissions
+        - name: fix-paths-permissions-and-configure
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /redis/redis-data && chown -R 999:999 /redis']
+          command:
+          - sh
+          - -c
+          - |
+            mkdir -p /redis/redis-data;
+            chown -R 999:999 /redis;
+            cp /etc/redis/redis.conf /redis/redis.conf
           volumeMounts:
           - name: redis-data
             mountPath: /redis
-            subPath: {{ .Values.config.cache.storage.local_subpath }}
+            subPath: {{ .storage.local_subpath }}
+          - name: redis-config
+            mountPath: /etc/redis/redis.conf
+            subPath: redis.conf
       containers:
         - name: redis
           image: redis:7
@@ -87,11 +98,32 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /redis
-              subPath: {{ .Values.config.cache.storage.local_subpath }}
+              subPath: {{ .storage.local_subpath }}
             - name: redis-config
               mountPath: /etc/redis/redis.conf
               subPath: redis.conf
           command: ["redis-server", "/etc/redis/redis.conf", "dir", "/redis/redis-data"]
+        - name: sentinel-watcher
+          image: redis:7
+          command:
+          - sh
+          - -c
+          - |
+            MY_IP=$(grep 'redis-' /etc/hosts | awk '{print $1}');
+            while true; do
+              MASTER_IP=$(redis-cli -h redis-sentinel.{{ $.Values.namespace }}.svc.cluster.local -p 26379 \
+              SENTINEL get-master-addr-by-name redis-main | awk 'NR==1 {print}');
+              ROLE=$(redis-cli info replication | grep role: | cut -d: -f2 | tr -d '\r');
+              echo "Current role: $ROLE"
+              if [ "$ROLE" = "master" ]; then
+                CURRENT_MASTER=$(redis-cli info replication | grep master_host | cut -d: -f2 | tr -d ' ');
+                if [ "$MASTER_IP" != "$CURRENT_MASTER" ] && [ "$CURRENT_MASTER" ] && [ "$MASTER_IP" != "$MY_IP" ]; then
+                  echo "Switching to new master at $MASTER_IP from $CURRENT_MASTER"
+                  redis-cli SLAVEOF $MASTER_IP 6379;
+                fi;
+              fi;
+              sleep 3;
+            done
       nodeSelector: # Allow only on nodes with "persistence-managed-replicas" label
         persistence-managed-replicas: "true"
       affinity:
@@ -119,9 +151,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-worker
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $.Values.namespace }}
 spec:
-  replicas: {{ sub .Values.config.cache.replication.count 1 }}
+  replicas: {{ sub .replication.count 1 }}
   selector:
     matchLabels:
       app: redis
@@ -141,13 +173,35 @@ spec:
           configMap:
             name: redis-config
       initContainers:
-        - name: fix-paths-permissions
+        - name: fix-paths-permissions-and-configure
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /redis/redis-data && chown -R 999:999 /redis']
+          command:
+          - sh
+          - -c
+          - |
+            mkdir -p /redis/redis-data;
+            chown -R 999:999 /redis;
+            cp /etc/redis/redis.conf /redis/redis.conf
           volumeMounts:
           - name: redis-data
             mountPath: /redis
-            subPath: {{ .Values.config.cache.storage.local_subpath }}
+            subPath: {{ .storage.local_subpath }}
+          - name: redis-config
+            mountPath: /etc/redis/redis.conf
+            subPath: redis.conf
+        - name: init-config-with-discovery
+          image: busybox
+          command: 
+          - sh
+          - -c
+          - |
+            MASTER_IP=$(redis-cli -h redis-sentinel.{{ $.Values.namespace }}.svc.cluster.local -p 26379 \
+            SENTINEL get-master-addr-by-name redis-main | head -n 1);
+            echo "\nslaveof $MASTER_IP 6379" >> /redis/redis.conf;
+          volumeMounts:
+          - name: redis-data
+            mountPath: /redis
+            subPath: {{ .storage.local_subpath }}
       containers:
         - name: redis
           image: redis:7
@@ -156,16 +210,26 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /redis
-              subPath: {{ .Values.config.cache.storage.local_subpath }}
-            - name: redis-config
-              mountPath: /etc/redis/redis.conf
-              subPath: redis.conf
-          env:
-            - name: REDIS_MAIN_HOST
-              value: "redis-main-svc.{{ .Values.namespace }}.svc.cluster.local"
-            - name: REDIS_MAIN_PORT
-              value: "6379"
-          command: ["redis-server", "/etc/redis/redis.conf", "dir", "/redis/redis-data", "--slaveof", "$(REDIS_MAIN_HOST)", "$(REDIS_MAIN_PORT)"]
+              subPath: {{ .storage.local_subpath }}
+          command: ["redis-server", "/redis/redis.conf", "dir", "/redis/redis-data"]
+        - name: sentinel-watcher
+          image: redis:7
+          command:
+          - sh
+          - -c
+          - |
+            MY_IP=$(grep 'redis-' /etc/hosts | awk '{print $1}');
+            echo "Current IP: $MY_IP";
+            while true; do
+              MASTER_IP=$(redis-cli -h redis-sentinel.{{ $.Values.namespace }}.svc.cluster.local -p 26379 \
+              SENTINEL get-master-addr-by-name mymaster | awk 'NR==1 {print}');
+              CURRENT_MASTER=$(redis-cli info replication | grep master_host | cut -d: -f2 | tr -d ' ');
+              if [ "$MASTER_IP" != "$CURRENT_MASTER" ] && [ "$CURRENT_MASTER" ] && [ "$MASTER_IP" != "$MY_IP" ]; then
+                echo "Switching from master at $CURRENT_MASTER to $MASTER_IP"
+                redis-cli SLAVEOF $MASTER_IP 6379;
+              fi;
+              sleep 3;
+            done
       nodeSelector: # Allow only on nodes with "persistence-managed-replicas" label
         persistence-managed-replicas: "true"
       affinity:
@@ -178,3 +242,4 @@ spec:
                 values:
                 - redis
             topologyKey: "kubernetes.io/hostname"
+{{- end }}
