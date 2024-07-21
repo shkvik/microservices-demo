@@ -41,7 +41,7 @@ metadata:
   labels:
     app: rabbitmq
 spec:
-  type: ClusterIP
+  clusterIP: None
   ports:
   - port: 5672
     name: amqp
@@ -52,7 +52,7 @@ spec:
 
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: rabbitmq
   namespace: {{ .Values.namespace }}
@@ -64,6 +64,7 @@ spec:
   selector:
     matchLabels:
       app: rabbitmq
+  serviceName: rabbitmq-headless
   template:
     metadata:
       labels:
@@ -93,9 +94,6 @@ spec:
       containers:
       - name: rabbitmq
         image: rabbitmq:3-management
-        ports:
-        - containerPort: 5672
-        - containerPort: 15672
         volumeMounts:
         - name: rabbitmq-data
           mountPath: /var/lib/rabbitmq
@@ -106,13 +104,18 @@ spec:
         env:
         - name: RABBITMQ_ERLANG_COOKIE
           value: {{ .replication.clusterAuth }}
-        - name: RABBITMQ_NODENAME
-          value: 'rabbit@localhost'
+        - name: RABBITMQ_USE_LONGNAME
+          value: "true"
         - name: RABBITMQ_CLUSTER_NODES
           valueFrom:
             configMapKeyRef:
               name: rabbitmq-discovery-config
               key: cluster_nodes
+        ports:
+        - containerPort: 5672
+          name: amqp
+        - containerPort: 15672
+          name: management
       volumes:
       - name: rabbitmq-data
         persistentVolumeClaim:
