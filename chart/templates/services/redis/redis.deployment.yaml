@@ -1,4 +1,81 @@
 {{- with .Values.config.cache }}
+## Redis headless service for internal discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app: redis-cluster
+spec:
+  clusterIP: None
+  ports:
+  - port: 6379
+    name: redis-cluster
+  - port: 16379
+    name: cluster-bus
+  selector:
+    app: redis-cluster
+---
+## Redis cluster formation scripts
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-cluster-scripts
+  namespace: {{ $.Values.namespace }}
+data:
+  create_cluster.sh: |-
+    #!/bin/sh
+    {{- $namespace := $.Values.namespace }}
+    {{- $replicaCount := .scaling.replicas_per_shard | int }}
+    {{- $shardCount := .scaling.shards | int }}
+    {{- $totalCount := mul $shardCount $replicaCount | int }}
+    echo "Node name: $POD_NAME"
+    if [ "$POD_NAME" != "redis-cluster-0" ]; then
+      echo "Skipping cluster init, only redis-cluster-0 can perform cluster init...";
+      exit 0;
+    fi
+    # Wait for all nodes to become online
+    {{- range $i, $e := until $totalCount }}
+    until redis-cli -h redis-cluster-{{ $i }}.redis-headless.{{ $namespace }}.svc.cluster.local ping; do
+      echo "Waiting for redis-cluster-{{ $i }} to be ready..."
+      sleep 1
+    done
+    {{- end }}
+    # Attempt to acquire a lock
+    if [ ! -f /redis/cluster_create.lock ]; then
+      echo "Initializing Redis Cluster"
+      redis-cli --cluster create \ {{- range $i, $e := until $totalCount }}
+      redis-cluster-{{ $i }}.redis-headless.{{ $namespace }}.svc.cluster.local:6379 \
+      {{- end }}
+      --cluster-replicas {{ sub $replicaCount 1 | int }}
+      #touch /redis/cluster_create.lock
+    else
+      echo "Cluster already initialized, skipping initialization";
+    fi
+  join_cluster.sh: |-
+    #!/bin/sh
+    {{- $namespace := $.Values.namespace }}
+    {{- $shardCount := .scaling.shards | int }}
+    # Wait for all nodes to become online
+    {{- range $i, $e := until $shardCount }}
+    until redis-cli -h redis-cluster-{{ $i }}.redis-headless.{{ $namespace }}.svc.cluster.local ping; do
+      echo "Waiting for redis-cluster-{{ $i }} to be ready..."
+      sleep 1
+    done
+    {{- end }}
+    # Check if already part of a cluster
+    echo "Cluster state: $(redis-cli -h localhost -p 6379 cluster info | grep -q "cluster_state")"
+    if ! redis-cli -h localhost -p 6379 cluster info | grep -q "cluster_state:ok"; then
+      echo "Joining existing cluster"
+      redis-cli --cluster meet \ {{- range $i, $e := until $shardCount }}
+      redis-cluster-{{ $i }}.redis-headless.{{ $namespace }}.svc.cluster.local:6379
+      {{- if lt (add1 $i) $shardCount }} \{{- end }}
+      {{- end }}
+
+    fi
+
+---
 ## Redis main/worker configs
 apiVersion: v1
 kind: ConfigMap
@@ -8,21 +85,11 @@ metadata:
 data:
   redis.conf: |
     bind 0.0.0.0
----
-## Redis mainnode internal discovery service
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-main-discovery
-  namespace: {{ $.Values.namespace }}
-spec:
-  selector:
-    app: redis
-    role: main
-  ports:
-  - protocol: TCP
-    port: 6379
-  type: ClusterIP
+    cluster-enabled yes
+    cluster-config-file /redis/nodes.conf
+    cluster-node-timeout 5000
+    maxmemory {{ .memory.maxmemory }}
+    maxmemory-policy {{ .memory.maxmemory_policy }}
 ---
 ## Redis cluster discovery (load balancing)
 apiVersion: v1
@@ -32,100 +99,94 @@ metadata:
   namespace: {{ $.Values.namespace }}
 spec:
   selector:
-    app: redis
+    app: redis-cluster
   ports:
   - protocol: TCP
     port: 6379
   type: {{ .network.serviceType }}
 ---
-## Redis main node priority class
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: redis-main-priority
-value: 1000
-globalDefault: false
-description: "Priority class for Redis main node"
----
-## Redis main node
+## Redis nodes 
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: redis-main
+  name: redis-cluster
   namespace: {{ $.Values.namespace }}
 spec:
-  replicas: 1
+  {{- $replicaCount := .scaling.replicas_per_shard | int }}
+  {{- $shardCount := .scaling.shards | int }}
+  {{- $totalCount := mul $shardCount $replicaCount | int }}
+  replicas: {{ $totalCount }}
+  podManagementPolicy: Parallel
+  serviceName: redis-headless
   selector:
     matchLabels:
-      app: redis
-      role: main
+      app: redis-cluster
   template:
     metadata:
       labels:
-        app: redis
-        role: main
+        app: redis-cluster
     spec:
-      priorityClassName: redis-main-priority
       volumes:
-        - name: redis-data
-          persistentVolumeClaim:
-            claimName: cache-pvc
-        - name: redis-config
-          configMap:
-            name: redis-config
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: cache-pvc
+      - name: redis-config
+        configMap:
+          name: redis-config
+      - name: scripts
+        configMap:
+          name: redis-cluster-scripts
       initContainers:
-        - name: fix-paths-permissions-and-configure
-          image: busybox
-          command:
-          - sh
-          - -c
-          - |
-            mkdir -p /redis/redis-data;
-            chown -R 999:999 /redis;
-            cp /etc/redis/redis.conf /redis/redis.conf
-          volumeMounts:
-          - name: redis-data
-            mountPath: /redis
-            subPath: {{ .storage.local_subpath }}
-          - name: redis-config
-            mountPath: /etc/redis/redis.conf
-            subPath: redis.conf
+      - name: configure-storage
+        image: busybox
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command:
+        - sh
+        - -c
+        - |
+          # Prepare data directory and load configuration file
+          mkdir -p /redis/redis-data;
+          mkdir -p /redis/scripts;
+          cp /etc/redis.conf /redis/redis.conf;
+          cp /scripts/*.sh /redis/scripts/
+          rm /redis/cluster-init.log
+          chmod +x -R /redis/scripts/
+          chown -R 999:999 /redis;
+        volumeMounts:
+        - name: redis-data
+          mountPath: /redis
+          subPathExpr: {{ .storage.local_subpath }}/$(POD_NAME)
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+        - name: redis-config
+          mountPath: /etc/redis.conf
+          subPath: redis.conf
       containers:
-        - name: redis
-          image: redis:7
-          ports:
-            - containerPort: 6379
-          volumeMounts:
-            - name: redis-data
-              mountPath: /redis
-              subPath: {{ .storage.local_subpath }}
-            - name: redis-config
-              mountPath: /etc/redis/redis.conf
-              subPath: redis.conf
-          command: ["redis-server", "/etc/redis/redis.conf", "dir", "/redis/redis-data"]
-        - name: sentinel-watcher
-          image: redis:7
-          command:
-          - sh
-          - -c
-          - |
-            MY_IP=$(grep 'redis-' /etc/hosts | awk '{print $1}');
-            while true; do
-              MASTER_IP=$(redis-cli -h redis-sentinel.{{ $.Values.namespace }}.svc.cluster.local -p 26379 \
-              SENTINEL get-master-addr-by-name redis-main | awk 'NR==1 {print}');
-              ROLE=$(redis-cli info replication | grep role: | cut -d: -f2 | tr -d '\r');
-              echo "Current role: $ROLE"
-              if [ "$ROLE" = "master" ]; then
-                CURRENT_MASTER=$(redis-cli info replication | grep master_host | cut -d: -f2 | tr -d ' ');
-                if [ "$MASTER_IP" != "$CURRENT_MASTER" ] && [ "$CURRENT_MASTER" ] && [ "$MASTER_IP" != "$MY_IP" ]; then
-                  echo "Switching to new master at $MASTER_IP from $CURRENT_MASTER"
-                  redis-cli SLAVEOF $MASTER_IP 6379;
-                fi;
-              fi;
-              sleep 3;
-            done
+      - name: redis
+        image: redis:7
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        volumeMounts:
+        - name: redis-data
+          mountPath: /redis
+          subPathExpr: {{ .storage.local_subpath }}/$(POD_NAME)
+        command: 
+        - sh
+        - -c
+        - |
+          (/redis/scripts/create_cluster.sh >> /redis/cluster-init.log 2>&1; /redis/scripts/join_cluster.sh >> /redis/cluster-init.log 2>&1) &
+          redis-server /redis/redis.conf
       nodeSelector: # Allow only on nodes with "persistence-managed-replicas" label
         persistence-managed-replicas: "true"
+      {{- if .deploy.single_replica_per_node }}
       affinity:
         podAntiAffinity: # Limit number of pods of the same type to 1 per node
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -134,112 +195,8 @@ spec:
               - key: app
                 operator: In
                 values:
-                - redis
+                - redis-cluster
             topologyKey: "kubernetes.io/hostname"
----
-## Redis Mirror nodes priority class
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: redis-worker-priority
-value: 500
-globalDefault: false
-description: "Priority class for Redis workers"
----
-## Redis Mirror nodes
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-worker
-  namespace: {{ $.Values.namespace }}
-spec:
-  replicas: {{ sub .replication.count 1 }}
-  selector:
-    matchLabels:
-      app: redis
-      role: worker
-  template:
-    metadata:
-      labels:
-        app: redis
-        role: worker
-    spec:
-      priorityClassName: redis-worker-priority
-      volumes:
-        - name: redis-data
-          persistentVolumeClaim:
-            claimName: cache-pvc
-        - name: redis-config
-          configMap:
-            name: redis-config
-      initContainers:
-        - name: fix-paths-permissions-and-configure
-          image: busybox
-          command:
-          - sh
-          - -c
-          - |
-            mkdir -p /redis/redis-data;
-            chown -R 999:999 /redis;
-            cp /etc/redis/redis.conf /redis/redis.conf
-          volumeMounts:
-          - name: redis-data
-            mountPath: /redis
-            subPath: {{ .storage.local_subpath }}
-          - name: redis-config
-            mountPath: /etc/redis/redis.conf
-            subPath: redis.conf
-        - name: init-config-with-discovery
-          image: busybox
-          command: 
-          - sh
-          - -c
-          - |
-            MASTER_IP=$(redis-cli -h redis-sentinel.{{ $.Values.namespace }}.svc.cluster.local -p 26379 \
-            SENTINEL get-master-addr-by-name redis-main | head -n 1);
-            echo "\nslaveof $MASTER_IP 6379" >> /redis/redis.conf;
-          volumeMounts:
-          - name: redis-data
-            mountPath: /redis
-            subPath: {{ .storage.local_subpath }}
-      containers:
-        - name: redis
-          image: redis:7
-          ports:
-            - containerPort: 6379
-          volumeMounts:
-            - name: redis-data
-              mountPath: /redis
-              subPath: {{ .storage.local_subpath }}
-          command: ["redis-server", "/redis/redis.conf", "dir", "/redis/redis-data"]
-        - name: sentinel-watcher
-          image: redis:7
-          command:
-          - sh
-          - -c
-          - |
-            MY_IP=$(grep 'redis-' /etc/hosts | awk '{print $1}');
-            echo "Current IP: $MY_IP";
-            while true; do
-              MASTER_IP=$(redis-cli -h redis-sentinel.{{ $.Values.namespace }}.svc.cluster.local -p 26379 \
-              SENTINEL get-master-addr-by-name mymaster | awk 'NR==1 {print}');
-              CURRENT_MASTER=$(redis-cli info replication | grep master_host | cut -d: -f2 | tr -d ' ');
-              if [ "$MASTER_IP" != "$CURRENT_MASTER" ] && [ "$CURRENT_MASTER" ] && [ "$MASTER_IP" != "$MY_IP" ]; then
-                echo "Switching from master at $CURRENT_MASTER to $MASTER_IP"
-                redis-cli SLAVEOF $MASTER_IP 6379;
-              fi;
-              sleep 3;
-            done
-      nodeSelector: # Allow only on nodes with "persistence-managed-replicas" label
-        persistence-managed-replicas: "true"
-      affinity:
-        podAntiAffinity: # Limit number of pods of the same type to 1 per node
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - redis
-            topologyKey: "kubernetes.io/hostname"
+      {{- end }}
+
 {{- end }}
