@@ -32,32 +32,6 @@ implements SagaResponseChannelAdapter<RedisResponseChannelAdapterCredentials> {
         return credentials
     }
 
-    private async getMainnodeCredentials(): Promise<RedisResponseChannelAdapterCredentials> {
-
-        if(!this.credentials!.sentinel) return this.credentials!
-        
-        const sentinel = createClient(this.credentials?.sentinel)
-        await sentinel.connect()
-        const [host, port] : [string, string] =
-            await sentinel.sendCommand(['SENTINEL', 'get-master-addr-by-name', this.credentials!.sentinel!.mainnode_name]);
-        
-        sentinel.disconnect()
-
-        const credentials = {...this.credentials}
-
-        if(!credentials.url)
-            throw new Error('Redis mainnode discovered by Sentinel should have credentials defined as `url`')
-        
-        const url = new URL(credentials.url!)
-            url.host = host;
-            url.port = port
-
-        credentials.url = url.toString()
-
-        return credentials
-
-    }
-
     private async establishConnection(
         credentials: RedisResponseChannelAdapterCredentials
     ){
@@ -82,8 +56,7 @@ implements SagaResponseChannelAdapter<RedisResponseChannelAdapterCredentials> {
 
             try {
 
-                const credentials = await this.getMainnodeCredentials()
-                this.redis_publisher_connection = await this.establishConnection(credentials)
+                this.redis_publisher_connection = await this.establishConnection(this.credentials)
 
             } catch(ex) {
 

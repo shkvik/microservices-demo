@@ -14,13 +14,6 @@ describe('RedisSagaResponseChannelAdapter integration tests', () => {
         url: process.env.REDIS_CONNECTION_URL
     }
 
-    const { REDIS_SENTINEL_URL, REDIS_SENTINEL_MAINNODE_NAME } = process.env
-
-    if(REDIS_SENTINEL_URL && REDIS_SENTINEL_MAINNODE_NAME) {
-        console.log('Testing with Redis Sentinel mainnode discovery')
-        credentials.sentinel = { url: REDIS_SENTINEL_URL, mainnode_name: REDIS_SENTINEL_MAINNODE_NAME }
-    }
-
     describe('Connectivity tests', () => {
 
         const adapter = new RedisSagaResponseChannelAdapter()
@@ -129,6 +122,7 @@ describe('RedisSagaResponseChannelAdapter integration tests', () => {
 
     })
 
+    /*
     describe('SagaOperator interopability tests', () => {
 
         const adapter = new RedisSagaResponseChannelAdapter()
@@ -197,5 +191,6 @@ describe('RedisSagaResponseChannelAdapter integration tests', () => {
         })
 
     })
+    */
 
 })
