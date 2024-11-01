@@ -4,10 +4,17 @@ namespace: demo
 config:
 
   cache:
+    deploy:
+      single_replica_per_node: false # changing to true for production environment is recommended
+    memory:
+      maxmemory: 8gb
+      maxmemory_policy: allkeys-lru
     storage:
       provisioner: kubernetes.io/no-provisioner
-      pv_size: 12Gi
-      pvc_size: 12Gi
+      # 2x maxmemory +25% for potential overhead is recommened when distributed as single replica per storage instance
+      # or above multiplied by replica count when deployed as all on a single persistent storage
+      pv_size: 80Gi
+      pvc_size: 80Gi
       local_path: /var/tmp
       local_subpath: redis
     coordinator:
@@ -17,8 +24,13 @@ config:
         pvc_size: 1Gi
         local_path: /var/tmp
         local_subpath: redis-sentinel
-    replication:
-      count: 3
+    scaling:
+      # Amount of shards ina  cluster.
+      # Increase only for environments consisting of enough cluster nodes to carry more shards on separate nodes
+      shards: 3
+      # Amount of replicas for each shard, including main shard node.
+      # Increase only for environments consisting of enough cluster nodes to carry more replicas on separate nodes
+      replicas_per_shard: 2
     network:
       serviceType: NodePort # Replace with ClusterIP for production
 
@@ -34,4 +46,12 @@ config:
       clusterAuth: rabbitmq_test_erlang_cookie
     network:
       serviceType: NodePort # Replace with ClusterIP for production
+
+  supply_chain:
+    storage:
+      provisioner: kubernetes.io/no-provisioner
+      pv_size: 50Gi
+      pvc_size: 50Gi
+      local_path: /var/tmp
+      local_subpath: supply
 
