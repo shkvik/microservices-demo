@@ -11,14 +11,14 @@ import { SagaOperator } from '../../../src/modules/saga/components/SagaOperator'
 describe('RedisSagaResponseChannelAdapter integration tests', () => {
 
     const credentials : ReturnType<RedisSagaResponseChannelAdapter['setupCredentials']> = {
-        url: process.env.REDIS_CONNECTION_URL
+        url: "redis://:yourpassword@localhost:7000"
     }
 
     describe('Connectivity tests', () => {
 
         const adapter = new RedisSagaResponseChannelAdapter()
 
-        after(async function(){
+        afterAll(async function(){
             await adapter.dispose()
         })
 
@@ -64,8 +64,8 @@ describe('RedisSagaResponseChannelAdapter integration tests', () => {
 
         const adapter = new RedisSagaResponseChannelAdapter()
         adapter.setupCredentials(credentials)
-
-        after(async function() {
+        
+        afterAll(async function() {
             await adapter.dispose()
         })
 

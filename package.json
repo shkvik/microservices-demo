@@ -15,11 +15,14 @@
   "devDependencies": {
     "@types/amqplib": "^0.10.5",
     "@types/chai": "^4.3.16",
+    "@types/jest": "^29.5.14",
     "@types/mocha": "^10.0.7",
     "@types/node": "^20.14.8",
     "chai": "^4.4.1",
+    "jest": "^29.7.0",
     "mocha": "^10.4.0",
     "source-map-support": "^0.5.21",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.2"
   },
@@ -28,5 +31,33 @@
     "dotenv-cli": "^7.4.2",
     "redis": "^4.6.15",
     "rxjs": "^7.8.1"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/src/$1"
+    },
+    "testTimeout": 60000,
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "roots": [
+      "src",
+      "test"
+    ],
+    "testRegex": ".*\\.(test|spec|e2e)\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  },
+  "dependencies": {
+    "@types/axios": "^0.9.36",
+    "axios": "^1.7.7"
   }
 }
