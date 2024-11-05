@@ -1,0 +1,163 @@
+version: '3.8'
+
+networks:
+  redis-cluster-compose:
+    driver: bridge
+
+services:
+  redis-node-1:
+    image: redis:latest
+    ports:
+      - ${REDIS_PORT_1}:${REDIS_PORT_1}
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-1
+    command: > 
+      redis-server 
+        --port ${REDIS_PORT_1} 
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf 
+        --cluster-node-timeout 5000
+        --appendonly yes 
+        --bind 0.0.0.0 
+        --requirepass ${REDIS_PASS} 
+        --masterauth ${REDIS_PASS} 
+
+  redis-node-2:
+    image: redis:latest
+    ports:
+      - ${REDIS_PORT_2}:${REDIS_PORT_2}
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-2
+    command: > 
+      redis-server 
+        --port ${REDIS_PORT_2} 
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf 
+        --cluster-node-timeout 5000
+        --appendonly yes 
+        --bind 0.0.0.0 
+        --requirepass ${REDIS_PASS} 
+        --masterauth ${REDIS_PASS} 
+        
+  redis-node-3:
+    image: redis:latest
+    ports:
+      - ${REDIS_PORT_3}:${REDIS_PORT_3}
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-3
+    command: > 
+      redis-server 
+        --port ${REDIS_PORT_3} 
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf 
+        --cluster-node-timeout 5000
+        --appendonly yes 
+        --bind 0.0.0.0 
+        --requirepass ${REDIS_PASS} 
+        --masterauth ${REDIS_PASS} 
+
+  redis-node-4:
+    image: redis:latest
+    ports:
+      - ${REDIS_PORT_4}:${REDIS_PORT_4}
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-4
+    command: > 
+      redis-server 
+        --port ${REDIS_PORT_4} 
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf 
+        --cluster-node-timeout 5000
+        --appendonly yes 
+        --bind 0.0.0.0 
+        --requirepass ${REDIS_PASS} 
+        --masterauth ${REDIS_PASS} 
+
+  redis-node-5:
+    image: redis:latest
+    ports:
+      - ${REDIS_PORT_5}:${REDIS_PORT_5}
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-5
+    command: > 
+      redis-server 
+        --port ${REDIS_PORT_5} 
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf 
+        --cluster-node-timeout 5000
+        --appendonly yes 
+        --bind 0.0.0.0 
+        --requirepass ${REDIS_PASS} 
+        --masterauth ${REDIS_PASS} 
+  
+  redis-node-6:
+    image: redis:latest
+    ports:
+      - ${REDIS_PORT_6}:${REDIS_PORT_6}
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-6
+    command: > 
+      redis-server 
+        --port ${REDIS_PORT_6} 
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf 
+        --cluster-node-timeout 5000
+        --appendonly yes 
+        --bind 0.0.0.0 
+        --requirepass ${REDIS_PASS} 
+        --masterauth ${REDIS_PASS} 
+  
+  redis-cluster-creator:
+    image: redis:latest
+    ports:
+      - ${CLUSTER_CREATER_PORT}:${CLUSTER_CREATER_PORT}
+    networks:
+      - redis-cluster-compose
+    command: > 
+      redis-cli 
+        -a ${REDIS_PASS} 
+        -p ${REDIS_PORT_1} 
+        --cluster create 
+            redis-node-1:${REDIS_PORT_1} 
+            redis-node-2:${REDIS_PORT_2} 
+            redis-node-3:${REDIS_PORT_3} 
+            redis-node-4:${REDIS_PORT_4} 
+            redis-node-5:${REDIS_PORT_5} 
+            redis-node-6:${REDIS_PORT_6}
+
+        --cluster-replicas 1 
+        --cluster-yes
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
+  
+  redis-insight:
+    image: redis/redisinsight:latest
+    ports:
+      - 5540:5540
+    networks:
+      - redis-cluster-compose
+    volumes:
+      - ./redisinsight:/db
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672" 
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    networks:
+      - redis-cluster-compose

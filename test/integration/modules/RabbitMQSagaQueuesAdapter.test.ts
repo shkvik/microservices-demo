@@ -5,42 +5,54 @@ import { randomUUID } from 'crypto'
 import { DefaultSagaResponseType } from '../../../src/modules/saga/types/Saga.types'
 import { SagaRunner } from '../../../src/modules/saga/components/SagaRunner'
 import { SagaContext } from '../../../src/modules/saga/components/SagaContext'
+import { get, delete as delete_ } from 'axios';
+import * as dotenv from 'dotenv';
+
+
 
 describe('RabbitMQSagaAdapter integration tests', () => {
-
+    dotenv.config();
+    
     const credentials: RabbitMQCredentials = {
-        hostname: process.env.RABBITMQ_HOSTNAME
+        protocol: process.env.RABBITMQ_DEFAULT_PROTOCOL,
+        hostname: process.env.RABBITMQ_DEFAULT_HOST,
+        username: process.env.RABBITMQ_DEFAULT_USER,
+        password: process.env.RABBITMQ_DEFAULT_PASS,
+        port: Number(process.env.RABBITMQ_DEFAULT_PORT),
     }
 
+    beforeAll(async () => {
+
+    })
 
     describe('Connectivity tests', () => {
 
-        let adapter : RabbitMQSagaQueuesAdapter
+        let adapter: RabbitMQSagaQueuesAdapter
 
-        after(async function(){
-            if(adapter) await adapter.dispose()
+        afterAll(async function () {
+            if (adapter) await adapter.dispose()
         })
 
-        it('Create instance and set up credentials: should succeed', async function(){
+        it('Create instance and set up credentials: should succeed', async function () {
 
             adapter = new RabbitMQSagaQueuesAdapter()
             adapter.setupCredentials(credentials)
-            
+
         })
 
-        it('Establish connection: should succeed', async function(){
+        it('Establish connection: should succeed', async function () {
 
             await adapter.connection()
 
         })
 
-        it('Use connection awaiter second time: should re-use open connection', async function(){
+        it('Use connection awaiter second time: should re-use open connection', async function () {
 
             await adapter.connection()
 
         })
 
-        it('Drop internal connection: should re-establish upon next `connect` call', async function(){
+        it('Drop internal connection: should re-establish upon next `connect` call', async function () {
 
             await adapter['rabbit_connecton']!.close()
 
@@ -48,7 +60,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Dispose & re-establish: should error', async function(){
+        it('Dispose & re-establish: should error', async function () {
 
             await adapter.dispose()
 
@@ -56,13 +68,39 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
                 await adapter.connection()
 
-            } catch(ex) {
+            } catch (ex) {
 
                 expect((ex as Error).message).match(/Adapter connection disposed/)
 
             }
-            
 
+
+        })
+
+        it('Clean queues', async function () {
+            const RABBITMQ_API_URL = `http://localhost:15672/api/queues`;
+            const VHOST = '/';
+
+            const response = await get<{ name: string }[]>(RABBITMQ_API_URL, {
+                auth: {
+                    username: 'guest',
+                    password: 'guest'
+                }
+            });
+            const queues = response.data;
+            const requests = queues.map(async (queue) => {
+                const queueName = queue.name;
+                const encodedVhost = encodeURIComponent(VHOST);
+                const encodedQueueName = encodeURIComponent(queueName);
+                const deleteUrl = `${RABBITMQ_API_URL}/${encodedVhost}/${encodedQueueName}`;
+                await delete_(deleteUrl, {
+                    auth: {
+                        username: 'guest',
+                        password: 'guest'
+                    }
+                });
+            })
+            await Promise.all(requests);
         })
 
     })
@@ -72,11 +110,11 @@ describe('RabbitMQSagaAdapter integration tests', () => {
         let adapter = new RabbitMQSagaQueuesAdapter()
         adapter.setupCredentials(credentials)
 
-        after(async function () {
+        afterAll(async function () {
             await adapter.dispose()
         })
 
-        it('Send message to queue and consume: should succeed', async function(){
+        it('Send message to queue and consume: should succeed', async function () {
 
             const request_id = randomUUID()
 
@@ -98,10 +136,10 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Send error letter to DLQ and consume: should succeed', async function(){
+        it('Send error letter to DLQ and consume: should succeed', async function () {
 
             const request_id = randomUUID()
-            
+
             adapter.sendDeadLetter('unknown_errors', { request_id }, new Error('Arbitrary error'))
 
             const consumed = await new Promise<DefaultSagaResponseType>(async (resolve) => {
@@ -124,22 +162,21 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
     describe('SagaRunner interopability test', () => {
 
-        let adapter : RabbitMQSagaQueuesAdapter
+        let adapter: RabbitMQSagaQueuesAdapter
 
-        before(async function(){
+        beforeAll(async function () {
 
             adapter = new RabbitMQSagaQueuesAdapter()
             adapter.setupCredentials(credentials)
 
         })
 
-        after(async function(){
-
+        afterAll(async function () {
             await adapter.dispose()
 
         })
 
-        it('Create one-step Saga of SagaRunners using MQ adapter: should succeed', async function(){
+        it('Create one-step Saga of SagaRunners using MQ adapter: should succeed', async function () {
 
             const oneStepContext = new SagaContext('test_one_step')
                 .input('tos:input1')
@@ -151,7 +188,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 .useContext(oneStepContext)
                 .handleTask(async task => {
 
-                    if(task.shouldError) throw new Error('Errored as it should')
+                    if (task.shouldError) throw new Error('Errored as it should')
                     else task.executed = true
 
                     return task
@@ -161,7 +198,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Execute one-step Saga: should succeed and produce valid result', async function(){
+        it('Execute one-step Saga: should succeed and produce valid result', async function () {
 
             const request_id = randomUUID()
 
@@ -184,21 +221,21 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Execute one-step saga with error: should pass error to DLQ as an appropriate object', async function(){
+        it('Execute one-step saga with error: should pass error to DLQ as an appropriate object', async function () {
 
             const request_id = randomUUID()
 
             adapter.sendSagaRequest('tos:input1', { request_id, shouldError: true }, { default_dlq: 'tos:error1' })
 
-            const { input, error } : { input: DefaultSagaResponseType, error: Error | undefined } =
-            await new Promise(async (resolve) => {
+            const { input, error }: { input: DefaultSagaResponseType, error: Error | undefined } =
+                await new Promise(async (resolve) => {
 
-                const cancel = await adapter.subscribeToSagaDLQ('tos:error1', async ( input, error ) => {
-                    await cancel()
-                    resolve({ input, error })
+                    const cancel = await adapter.subscribeToSagaDLQ('tos:error1', async (input, error) => {
+                        await cancel()
+                        resolve({ input, error })
+                    })
+
                 })
-
-            })
 
             expect(input.request_id).eq(request_id)
             expect(input.shouldError).eq(true)
@@ -208,7 +245,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Create three-step SagaRunners chain using MQ adapter: should succeed', async function(){
+        it('Create three-step SagaRunners chain using MQ adapter: should succeed', async function () {
 
             // a context for request input
             const step1RunnerContext = new SagaContext('.3step_runner1')
@@ -219,16 +256,16 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
                 // runner context for step 2
                 step2RunnerContext = new SagaContext('.3step_runner2')
-                .input('.3step:input2')
-                .output('.3step:input3')
-                .dlq('.3step:error2')
-                .nextdlq('.3step:error3'),
+                    .input('.3step:input2')
+                    .output('.3step:input3')
+                    .dlq('.3step:error2')
+                    .nextdlq('.3step:error3'),
 
                 // runner context for step 3
                 step3RunnerContext = new SagaContext('.3step_runner3')
-                .input('.3step:input3')
-                .output('.3step:output3')
-                .dlq('.3step:error3')
+                    .input('.3step:input3')
+                    .output('.3step:output3')
+                    .dlq('.3step:error3')
 
             // set up saga runner for step #1
             await new SagaRunner()
@@ -236,8 +273,8 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 .useContext(step1RunnerContext)
                 .handleTask(async input => {
 
-                    if(input.task1ShouldError) throw new Error('Errored at task #1')
-                    
+                    if (input.task1ShouldError) throw new Error('Errored at task #1')
+
                     input.task1Complete = true
                     return input
 
@@ -266,7 +303,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 .useContext(step2RunnerContext)
                 .handleTask(async input => {
 
-                    if(input.task2ShouldError) throw new Error('Errored at task #2')
+                    if (input.task2ShouldError) throw new Error('Errored at task #2')
 
                     input.task2Complete = true
                     return input
@@ -278,7 +315,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                     return { error, input }
 
                 })
-                .handleNextDLQ(async(error, input) => {
+                .handleNextDLQ(async (error, input) => {
 
                     input.task2CaughtNext = true
                     //rollback
@@ -296,8 +333,8 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 .useContext(step3RunnerContext)
                 .handleTask(async input => {
 
-                    if(input.task3ShouldError) throw new Error('Errored at task #3')
-                    
+                    if (input.task3ShouldError) throw new Error('Errored at task #3')
+
                     input.task3Complete = true
                     return input
 
@@ -312,14 +349,14 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 .launch()
 
         })
-        
-        it('Execute full Saga without expected errors: should succeed & pass all assigned mutations as response', async function(){
+
+        it('Execute full Saga without expected errors: should succeed & pass all assigned mutations as response', async function () {
 
             const request_id = randomUUID()
 
-            adapter.sendSagaRequest('.3step:input1', { request_id }, { default_dlq: '.3step:error1'})
+            adapter.sendSagaRequest('.3step:input1', { request_id }, { default_dlq: '.3step:error1' })
 
-            const response : DefaultSagaResponseType = await new Promise(async (resolve) => {
+            const response: DefaultSagaResponseType = await new Promise(async (resolve) => {
 
                 const cancel = await adapter.subscribeToSagaQueue('.3step:output3', async (res) => {
                     await cancel()
@@ -336,13 +373,13 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Execute full Saga with expected error at task #1: should produce error into according DLQ and never reach next steps', async function(){
+        it('Execute full Saga with expected error at task #1: should produce error into according DLQ and never reach next steps', async function () {
 
             const request_id = randomUUID()
 
-            adapter.sendSagaRequest('.3step:input1', { request_id, task1ShouldError: true }, { default_dlq: '.3step:error1'})
+            adapter.sendSagaRequest('.3step:input1', { request_id, task1ShouldError: true }, { default_dlq: '.3step:error1' })
 
-            const response : { input: DefaultSagaResponseType, error: Error | undefined } =
+            const response: { input: DefaultSagaResponseType, error: Error | undefined } =
                 await new Promise(async (resolve) => {
 
                     const cancel = await adapter.subscribeToSagaDLQ(
@@ -355,7 +392,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 })
 
             expect(response).not.null.and.not.undefined
-            
+
             const { input, error } = response
 
             expect(input).not.null.and.not.undefined
@@ -367,13 +404,13 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Execute full Saga with expected error at task #2: should produce composite error from 2 of 3 steps in chain', async function(){
+        it('Execute full Saga with expected error at task #2: should produce composite error from 2 of 3 steps in chain', async function () {
 
             const request_id = randomUUID()
 
             adapter.sendSagaRequest('.3step:input1', { request_id, task2ShouldError: true }, { default_dlq: '.3step:error1' })
 
-            const response : { input: DefaultSagaResponseType, error: Error | undefined } =
+            const response: { input: DefaultSagaResponseType, error: Error | undefined } =
                 await new Promise(async (resolve) => {
 
                     const cancel = await adapter.subscribeToSagaDLQ(
@@ -386,7 +423,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 })
 
             expect(response).not.null.and.not.undefined
-            
+
             const { input, error } = response
 
             expect(input).not.null.and.not.undefined
@@ -406,13 +443,13 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Execute full Saga with expected error at task #3: should produce composite error from all 3 steps', async function(){
+        it('Execute full Saga with expected error at task #3: should produce composite error from all 3 steps', async function () {
 
             const request_id = randomUUID()
 
-            adapter.sendSagaRequest('.3step:input1', { request_id, task3ShouldError: true }, { default_dlq: '.3step:error1'})
+            adapter.sendSagaRequest('.3step:input1', { request_id, task3ShouldError: true }, { default_dlq: '.3step:error1' })
 
-            const response : { input: DefaultSagaResponseType, error: Error | undefined } =
+            const response: { input: DefaultSagaResponseType, error: Error | undefined } =
                 await new Promise(async (resolve) => {
 
                     const cancel = await adapter.subscribeToSagaDLQ(
@@ -425,7 +462,7 @@ describe('RabbitMQSagaAdapter integration tests', () => {
                 })
 
             expect(response).not.null.and.not.undefined
-            
+
             const { input, error } = response
 
             expect(input).not.null.and.not.undefined
@@ -449,15 +486,15 @@ describe('RabbitMQSagaAdapter integration tests', () => {
 
         })
 
-        it('Drop adapter internal connection & try executing Saga again: should restore consumers & succeed', async function(){
+        it('Drop adapter internal connection & try executing Saga again: should restore consumers & succeed', async function () {
 
             await adapter['rabbit_connecton']!.close()
 
             const request_id = randomUUID()
 
-            adapter.sendSagaRequest('.3step:input1', { request_id }, { default_dlq: '.3step:error1'})
+            adapter.sendSagaRequest('.3step:input1', { request_id }, { default_dlq: '.3step:error1' })
 
-            const response : DefaultSagaResponseType = await new Promise(async (resolve) => {
+            const response: DefaultSagaResponseType = await new Promise(async (resolve) => {
 
                 const cancel = await adapter.subscribeToSagaQueue('.3step:output3', async (res) => {
                     await cancel()
@@ -473,21 +510,25 @@ describe('RabbitMQSagaAdapter integration tests', () => {
             expect(response.task3Complete).eq(true)
 
         })
-        
+
     })
 
     describe('SagaOperator interopability test', () => {
 
-        let adapter : RabbitMQSagaQueuesAdapter
+        let adapter: RabbitMQSagaQueuesAdapter
 
-        before(async function(){
+        beforeAll(async function () {
 
             adapter = new RabbitMQSagaQueuesAdapter()
             adapter.setupCredentials(credentials)
 
         })
+        
+        it("should be defined", () => {
+            expect(adapter).not.null;
+        });
 
-        after(async function(){
+        afterAll(async function () {
 
             await adapter.dispose()
 
