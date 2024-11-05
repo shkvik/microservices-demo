@@ -7,11 +7,14 @@ import { StubSagaQueuesAdapter } from '../../../src/modules/saga/adapters/queues
 import { SagaContext } from '../../../src/modules/saga/components/SagaContext'
 import { SagaRunner } from '../../../src/modules/saga/components/SagaRunner'
 import { SagaOperator } from '../../../src/modules/saga/components/SagaOperator'
+import * as dotenv from 'dotenv';
+
 
 describe('RedisSagaResponseChannelAdapter integration tests', () => {
+    dotenv.config();
 
     const credentials : ReturnType<RedisSagaResponseChannelAdapter['setupCredentials']> = {
-        url: "redis://:yourpassword@localhost:7000"
+        url: process.env.REDIS_CONNECTION_URL
     }
 
     describe('Connectivity tests', () => {

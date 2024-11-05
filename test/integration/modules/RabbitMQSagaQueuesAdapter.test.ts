@@ -6,16 +6,19 @@ import { DefaultSagaResponseType } from '../../../src/modules/saga/types/Saga.ty
 import { SagaRunner } from '../../../src/modules/saga/components/SagaRunner'
 import { SagaContext } from '../../../src/modules/saga/components/SagaContext'
 import { get, delete as delete_ } from 'axios';
+import * as dotenv from 'dotenv';
+
 
 
 describe('RabbitMQSagaAdapter integration tests', () => {
-
+    dotenv.config();
+    
     const credentials: RabbitMQCredentials = {
-        protocol: 'amqp',
-        hostname: 'localhost',
-        port: 5672,
-        username: 'guest',
-        password: 'guest'
+        protocol: process.env.RABBITMQ_DEFAULT_PROTOCOL,
+        hostname: process.env.RABBITMQ_DEFAULT_HOST,
+        username: process.env.RABBITMQ_DEFAULT_USER,
+        password: process.env.RABBITMQ_DEFAULT_PASS,
+        port: Number(process.env.RABBITMQ_DEFAULT_PORT),
     }
 
     beforeAll(async () => {

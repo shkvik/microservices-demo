@@ -13,8 +13,8 @@ describe('Sagas unit testing', () => {
 
     describe('StubSagaQueueAdapter unit testing', () => {
 
-        before(() => StubSagaQueuesAdapter.flush())
-        after(() => StubSagaQueuesAdapter.flush())
+        beforeAll(() => StubSagaQueuesAdapter.flush())
+        afterAll(() => StubSagaQueuesAdapter.flush())
 
         it('Subscribe to queue and send a message: should react upon message arrival', async function(){
 
@@ -39,8 +39,8 @@ describe('Sagas unit testing', () => {
 
     describe('SagaRunner unit testing', () => {
 
-        before(() => StubSagaQueuesAdapter.flush())
-        after(() => StubSagaQueuesAdapter.flush())
+        beforeAll(() => StubSagaQueuesAdapter.flush())
+        afterAll(() => StubSagaQueuesAdapter.flush())
 
         let runners : SagaRunner[] = []
 
@@ -151,11 +151,11 @@ describe('Sagas unit testing', () => {
 
     describe('SagaOperator unit testing', () => {
 
-        before(() => {
+        beforeAll(() => {
             StubSagaQueuesAdapter.flush()
             StubSagaResponseChannelAdapter.flush()
         })
-        after(() => {
+        afterAll(() => {
             StubSagaQueuesAdapter.flush()
             StubSagaResponseChannelAdapter.flush()
         })
@@ -252,12 +252,12 @@ describe('Sagas unit testing', () => {
 
     describe('SagaEntrypoint unit testing', () => {
 
-        before(() => {
+        beforeAll(() => {
             StubSagaQueuesAdapter.flush()
             StubSagaResponseChannelAdapter.flush()
 
         })
-        after(() => {
+        afterAll(() => {
             StubSagaQueuesAdapter.flush()
             StubSagaResponseChannelAdapter.flush()
         })
@@ -403,12 +403,12 @@ describe('Sagas unit testing', () => {
 
     describe('Queue adapter connection disruption behavior testing', () => {
 
-        before(() => {
+        beforeAll(() => {
             StubSagaQueuesAdapter.flush()
             StubSagaResponseChannelAdapter.flush()
 
         })
-        after(() => {
+        afterAll(() => {
             StubSagaQueuesAdapter.flush()
             StubSagaResponseChannelAdapter.flush()
         })
@@ -443,7 +443,7 @@ describe('Sagas unit testing', () => {
 
                 })
 
-                // connection reset after subscription
+                // connection reset afterAll subscription
                 StubSagaQueuesAdapter.resetConnection()
 
                 queueAdapter.sendSagaRequest('disrupted_in', { request_id }, { default_dlq: 'disrupted_dlq' })
